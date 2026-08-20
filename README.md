@@ -2,7 +2,7 @@
 
 Personal engineering notebook, published as a static site with **GitHub Pages**.
 
-Live site: `https://<your-github-username>.github.io/tecnote/`
+Live site (once Pages is enabled): <https://wfgp84.github.io/technotes/>
 
 ## Contents
 
@@ -19,40 +19,41 @@ in the `main` branch's root directly.
 - `index.html` is the landing page (auto-served at `/`).
 - `.nojekyll` disables Jekyll processing so filenames starting with `_` still work.
 
-## First-time deploy checklist
+## Deploy to GitHub Pages
 
-1. **Create a GitHub repo** called `tecnote` (public).
-   - Go to <https://github.com/new>.
-   - Owner: your account · Name: `tecnote` · Public · **do not** initialize with README/gitignore.
-2. **Push this folder** (see commands below).
-3. **Enable Pages**:
-   - Repo → *Settings* → *Pages*.
-   - Source: **Deploy from a branch**.
-   - Branch: `main`, folder: `/ (root)`. Save.
-4. Wait ~30 s. The site appears at `https://<user>.github.io/tecnote/`.
+The local repo and the remote (`https://github.com/wfgp84/technotes.git`)
+are already wired up. You just need to push and enable Pages.
 
-## Push commands (from this directory)
+### 1. Push the current commit
 
 ```powershell
-# One-time git identity setup (skip if already configured globally)
-git config --global user.name  "Your Name"
-git config --global user.email "you@example.com"
-
-# The local repo is already initialised. Just add the remote and push:
-git remote add origin https://github.com/<your-github-username>/tecnote.git
-git branch -M main
+cd C:\wfgp\code\tecnote
 git push -u origin main
 ```
 
 If HTTPS asks for a password, use a **Personal Access Token** (PAT):
-Create at <https://github.com/settings/tokens> → *Fine-grained token* →
-scope this repo with `Contents: Read and write`.
+create at <https://github.com/settings/tokens> → *Fine-grained token* →
+scope this repo with `Contents: Read and write`, then paste the token
+as the "password".
+
+### 2. Enable Pages
+
+- Open <https://github.com/wfgp84/technotes/settings/pages>.
+- **Source:** *Deploy from a branch*.
+- **Branch:** `main`, folder: `/ (root)`. Save.
+
+Wait ~30 s. Your site appears at <https://wfgp84.github.io/technotes/>.
 
 ## Adding a new note
 
 1. Drop `my-new-note.html` in the repo root.
 2. Add a card to `index.html` linking to it.
-3. `git add . && git commit -m "add my-new-note" && git push`.
+3. Commit and push:
+   ```powershell
+   git add .
+   git commit -m "add my-new-note"
+   git push
+   ```
 4. GitHub Pages redeploys automatically in <1 minute.
 
 ## Custom domain (optional)
