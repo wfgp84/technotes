@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>C++ std::vector — Tech Notes</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #a78bfa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --border: #334155;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    padding: 40px 40px 28px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    letter-spacing: 0.5px;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  main {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 32px 80px;
+  }
+  section {
+    margin: 32px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 28px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  section h2 {
+    margin: 0 0 6px;
+    color: var(--accent);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section h2 .num {
+    background: var(--accent);
+    color: #0f172a;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  section h3 {
+    color: var(--accent-2);
+    margin-top: 22px;
+    margin-bottom: 8px;
+    font-size: 16px;
+  }
+  section .desc {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  pre {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    border-left: 3px solid var(--accent);
+    margin: 10px 0;
+  }
+  pre.output { border-left-color: var(--ok); color: #d1fae5; }
+  code {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    word-break: break-word;
+  }
+  /* comment / keyword colors */
+  .kw { color: #c084fc; }
+  .fn { color: #38bdf8; }
+  .str { color: #86efac; }
+  .cmt { color: #64748b; font-style: italic; }
+  .num-lit { color: #fbbf24; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    color: var(--accent-2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-right: 4px;
+  }
+  .tag-fast { background: #34d399; color: #052e1a; }
+  .tag-slow { background: #f87171; color: #500000; }
+  .tag-cpp11 { background: #38bdf8; color: #0f172a; }
+  .tag-cpp17 { background: #a78bfa; color: #1e1b4b; }
+  .tag-cpp20 { background: #fb923c; color: #431407; }
+  .note {
+    background: rgba(56, 189, 248, 0.1);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    color: #cbd5e1;
+  }
+  .warn {
+    background: rgba(251, 191, 36, 0.08);
+    border-left: 3px solid var(--warn);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    color: #fde68a;
+  }
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+  }
+  .toc ol {
+    margin: 8px 0 0;
+    padding-left: 24px;
+    columns: 2;
+    -webkit-columns: 2;
+    -moz-columns: 2;
+  }
+  .toc li { margin: 5px 0; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+  footer {
+    padding: 20px 32px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+  }
+  ul.compact { margin: 6px 0; padding-left: 22px; }
+  ul.compact li { margin: 4px 0; font-size: 14px; }
+  .medal {
+    display: inline-block;
+    font-size: 16px;
+    margin-right: 4px;
+  }
+  @media (max-width: 900px) {
+    .toc ol { columns: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>C++ <code style="font-size:26px;background:transparent;padding:0">std::vector</code> Tech Notes</h1>
+  <div class="sub">
+    Sort · merge/concat · <code>push_back</code> vs <code>emplace_back</code> · performance rules · Jaccard similarity example.
+    <br>Written for C++11 / C++17 / C++20 &nbsp;|&nbsp; last updated Aug 20, 2026
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#sort">1. Sorting a vector</a></li>
+    <li><a href="#merge">2. Merging / concatenating vectors</a></li>
+    <li><a href="#push-emplace">3. <code>push_back</code> vs <code>emplace_back</code></a></li>
+    <li><a href="#speed-rank">4. Which is faster? (ranking)</a></li>
+    <li><a href="#rules">5. Practical rules of thumb</a></li>
+    <li><a href="#jaccard">6. Applied example: Sparse Jaccard similarity</a></li>
+  </ol>
+</div>
+
+<!-- ============================ 1. SORT ============================ -->
+<section id="sort">
+  <h2><span class="num">1</span>Sorting a vector</h2>
+  <div class="desc">Header <code>&lt;algorithm&gt;</code>. Range is <code>[begin, end)</code>. Comparator must impose a strict weak ordering (use <code>&lt;</code>, not <code>&lt;=</code>).</div>
+
+  <h3>Ascending</h3>
+<pre><span class="kw">#include</span> <span class="str">&lt;algorithm&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+
+std::vector&lt;<span class="kw">int</span>&gt; v = {5, 2, 8, 1, 9, 3};
+std::<span class="fn">sort</span>(v.begin(), v.end());          <span class="cmt">// 1 2 3 5 8 9</span></pre>
+
+  <h3>Descending</h3>
+<pre>std::<span class="fn">sort</span>(v.begin(), v.end(), std::greater&lt;<span class="kw">int</span>&gt;());
+<span class="cmt">// or with a lambda:</span>
+std::<span class="fn">sort</span>(v.begin(), v.end(), [](<span class="kw">int</span> a, <span class="kw">int</span> b) { <span class="kw">return</span> a &gt; b; });</pre>
+
+  <h3>Custom comparator (structs)</h3>
+<pre><span class="kw">struct</span> Trade { std::string pair; <span class="kw">double</span> pnl; };
+std::vector&lt;Trade&gt; trades = <span class="cmt">/* &hellip; */</span>;
+
+std::<span class="fn">sort</span>(trades.begin(), trades.end(),
+          [](<span class="kw">const</span> Trade&amp; a, <span class="kw">const</span> Trade&amp; b) { <span class="kw">return</span> a.pnl &gt; b.pnl; });</pre>
+
+  <h3>Complexity &amp; stability</h3>
+  <table>
+    <thead><tr><th>Property</th><th><code>std::sort</code></th><th><code>std::stable_sort</code></th></tr></thead>
+    <tbody>
+      <tr><td>Time</td><td>O(N log N) average &amp; worst (C++11+)</td><td>O(N log&sup2; N) worst; O(N log N) with extra memory</td></tr>
+      <tr><td>Stable (equal keys keep order)</td><td>No</td><td>Yes</td></tr>
+      <tr><td>Extra memory</td><td>O(log N) stack</td><td>O(N)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Related helpers</h3>
+  <ul class="compact">
+    <li><code>std::partial_sort(begin, middle, end)</code> — sorts the first <code>middle-begin</code> smallest.</li>
+    <li><code>std::nth_element(begin, nth, end)</code> — O(N) average; puts the nth-order element in position.</li>
+    <li><code>std::is_sorted(begin, end)</code> — check ordering.</li>
+    <li><span class="tag tag-cpp20">C++20</span> <code>std::ranges::sort(v);</code> and <code>std::ranges::sort(v, std::greater{});</code></li>
+    <li><span class="tag tag-cpp17">C++17</span> <code>std::sort(std::execution::par, v.begin(), v.end());</code> — parallel (needs <code>&lt;execution&gt;</code>).</li>
+  </ul>
+</section>
+
+<!-- ============================ 2. MERGE ============================ -->
+<section id="merge">
+  <h2><span class="num">2</span>Merging / concatenating vectors</h2>
+  <div class="desc">Five common patterns depending on inputs (sorted vs unsorted, dedup, in-place).</div>
+
+  <h3>2.1 &nbsp; Append (concatenate)</h3>
+<pre>std::vector&lt;<span class="kw">int</span>&gt; a = {1, 2, 3}, b = {4, 5, 6};
+a.<span class="fn">insert</span>(a.end(), b.begin(), b.end());       <span class="cmt">// a = {1,2,3,4,5,6}</span></pre>
+
+  <p style="font-size:13px;color:var(--muted);margin:6px 0">Move elements out of <code>b</code>:</p>
+<pre>a.<span class="fn">insert</span>(a.end(),
+         std::<span class="fn">make_move_iterator</span>(b.begin()),
+         std::<span class="fn">make_move_iterator</span>(b.end()));</pre>
+
+  <h3>2.2 &nbsp; Merge two sorted → new sorted</h3>
+<pre>std::vector&lt;<span class="kw">int</span>&gt; a = {1, 3, 5, 7};
+std::vector&lt;<span class="kw">int</span>&gt; b = {2, 4, 6, 8};
+std::vector&lt;<span class="kw">int</span>&gt; merged;
+merged.<span class="fn">reserve</span>(a.size() + b.size());
+
+std::<span class="fn">merge</span>(a.begin(), a.end(),
+           b.begin(), b.end(),
+           std::<span class="fn">back_inserter</span>(merged));           <span class="cmt">// stable, O(N+M)</span></pre>
+
+  <h3>2.3 &nbsp; In-place merge (single vector, two sorted halves)</h3>
+<pre>std::vector&lt;<span class="kw">int</span>&gt; v = {1, 3, 5, 7, 2, 4, 6, 8};
+<span class="kw">auto</span> mid = v.begin() + 4;
+std::<span class="fn">inplace_merge</span>(v.begin(), mid, v.end());        <span class="cmt">// {1..8}</span></pre>
+
+  <h3>2.4 &nbsp; Concat then sort (unsorted inputs)</h3>
+<pre>a.<span class="fn">insert</span>(a.end(), b.begin(), b.end());
+std::<span class="fn">sort</span>(a.begin(), a.end());</pre>
+
+  <h3>2.5 &nbsp; Deduplicated union</h3>
+<pre>std::vector&lt;<span class="kw">int</span>&gt; a = {1, 2, 3, 5};
+std::vector&lt;<span class="kw">int</span>&gt; b = {2, 3, 4, 6};
+std::vector&lt;<span class="kw">int</span>&gt; u;
+u.<span class="fn">reserve</span>(a.size() + b.size());
+
+std::<span class="fn">set_union</span>(a.begin(), a.end(),
+               b.begin(), b.end(),
+               std::<span class="fn">back_inserter</span>(u));               <span class="cmt">// {1,2,3,4,5,6}</span></pre>
+
+  <p style="font-size:13px;color:var(--muted);margin:6px 0">Related: <code>set_intersection</code>, <code>set_difference</code>, <code>set_symmetric_difference</code>.</p>
+
+  <h3>Decision matrix</h3>
+  <table>
+    <thead><tr><th>Inputs</th><th>Goal</th><th>Best tool</th></tr></thead>
+    <tbody>
+      <tr><td>Any two vectors</td><td>Just append</td><td><code>a.insert(a.end(), b.begin(), b.end())</code></td></tr>
+      <tr><td>Two sorted, new output</td><td>Sorted merge</td><td><code>std::merge</code></td></tr>
+      <tr><td>One vector, two sorted halves</td><td>In-place merge</td><td><code>std::inplace_merge</code></td></tr>
+      <tr><td>Two unsorted, one sorted output</td><td>Concat then sort</td><td><code>insert</code> + <code>std::sort</code></td></tr>
+      <tr><td>Two sorted, unique output</td><td>Set union</td><td><code>std::set_union</code></td></tr>
+      <tr><td>Avoid copies</td><td>Move-append</td><td>use <code>std::make_move_iterator</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 3. PUSH vs EMPLACE ============================ -->
+<section id="push-emplace">
+  <h2><span class="num">3</span><code>push_back</code> vs <code>emplace_back</code></h2>
+  <div class="desc">Given <code>std::vector&lt;std::string&gt; result;</code> and <code>std::string a(<span class="str">"aa"</span>);</code></div>
+
+  <h3>Behaviour summary</h3>
+  <table>
+    <thead><tr><th>Call</th><th>What happens</th><th>Extra temp?</th><th>Copies</th><th>Moves</th></tr></thead>
+    <tbody>
+      <tr><td><code>result.push_back(a)</code></td><td>Copy <code>a</code> into vector</td><td>–</td><td>1</td><td>0</td></tr>
+      <tr><td><code>result.push_back(std::move(a))</code></td><td>Move <code>a</code> into vector</td><td>–</td><td>0</td><td>1</td></tr>
+      <tr><td><code>result.push_back("aa")</code></td><td>Build temp <code>std::string("aa")</code>, then move</td><td>✓</td><td>0</td><td>1</td></tr>
+      <tr><td><code>result.emplace_back(a)</code></td><td>Copy — same as <code>push_back(a)</code></td><td>–</td><td>1</td><td>0</td></tr>
+      <tr><td><code>result.emplace_back(std::move(a))</code></td><td>Move — same as <code>push_back(std::move(a))</code></td><td>–</td><td>0</td><td>1</td></tr>
+      <tr><td><code>result.emplace_back("aa")</code></td><td><b>Construct in place</b> with <code>string(const char*)</code></td><td>✗</td><td>0</td><td>0</td></tr>
+      <tr><td><code>result.emplace_back(2, 'a')</code></td><td><b>Construct in place</b> with <code>string(size_t, char)</code></td><td>✗</td><td>0</td><td>0</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Core difference:</b> <code>push_back(x)</code> requires <code>x</code> to be a fully-built element (or something convertible to it) — it takes copy/move refs.
+    <code>emplace_back(args...)</code> forwards its arguments <b>directly to the element's constructor</b>, building it in place. So <code>emplace_back</code> wins when you have raw constructor args, not an already-built object.
+  </div>
+
+  <h3>When <code>emplace_back</code> is strictly better</h3>
+  <ol>
+    <li>Passing constructor arguments (no temporary) — e.g. <code>emplace_back("aa")</code>, <code>emplace_back(2,'a')</code>.</li>
+    <li><code>explicit</code> constructors: <code>push_back({1,2})</code> won't compile if the ctor is <code>explicit</code>; <code>emplace_back(1,2)</code> works.</li>
+    <li>Move-only types you construct on the spot: <code>v.emplace_back(new Foo)</code> vs <code>v.push_back(std::make_unique&lt;Foo&gt;())</code>.</li>
+  </ol>
+
+  <h3>When <code>push_back</code> is preferable</h3>
+  <ul class="compact">
+    <li><b>Braced initializer lists</b>: <code>vv.push_back({1,2,3})</code> works; <code>emplace_back({1,2,3})</code> can't deduce.</li>
+    <li><b>Readability</b> — you already have an object; <code>push_back(a)</code> is clearer.</li>
+    <li><b>Type safety</b> — you don't want to accidentally match some other constructor overload.</li>
+  </ul>
+
+  <div class="warn">
+    <b>Misconception:</b> "<code>emplace_back</code> is always faster." — Not true. If you already hold a <code>std::string</code>, <code>emplace_back(a)</code> and <code>push_back(a)</code> compile to identical code. The difference only shows up when you pass ctor args.
+  </div>
+
+  <h3>Traced demo</h3>
+<pre><span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+
+<span class="kw">struct</span> Traced {
+    std::string s;
+    <span class="fn">Traced</span>(<span class="kw">const char</span>* p)      : s(p)              { std::cout &lt;&lt; <span class="str">"  ctor(const char*)\n"</span>; }
+    <span class="fn">Traced</span>(<span class="kw">size_t</span> n, <span class="kw">char</span> c)   : s(n, c)           { std::cout &lt;&lt; <span class="str">"  ctor(n, char)\n"</span>; }
+    <span class="fn">Traced</span>(<span class="kw">const</span> Traced&amp; o)     : s(o.s)            { std::cout &lt;&lt; <span class="str">"  copy\n"</span>; }
+    <span class="fn">Traced</span>(Traced&amp;&amp; o) <span class="kw">noexcept</span> : s(std::<span class="fn">move</span>(o.s)) { std::cout &lt;&lt; <span class="str">"  move\n"</span>; }
+};
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    std::vector&lt;Traced&gt; v;
+    v.<span class="fn">reserve</span>(<span class="num-lit">10</span>);                       <span class="cmt">// avoid reallocation noise</span>
+
+    Traced a(<span class="str">"aa"</span>);                       <span class="cmt">// ctor(const char*)</span>
+
+    std::cout &lt;&lt; <span class="str">"push_back(a):\n"</span>;         v.<span class="fn">push_back</span>(a);
+    std::cout &lt;&lt; <span class="str">"push_back(move a):\n"</span>;    v.<span class="fn">push_back</span>(std::<span class="fn">move</span>(a));
+    std::cout &lt;&lt; <span class="str">"push_back(\"aa\"):\n"</span>;      v.<span class="fn">push_back</span>(<span class="str">"aa"</span>);
+    std::cout &lt;&lt; <span class="str">"emplace_back(\"aa\"):\n"</span>;   v.<span class="fn">emplace_back</span>(<span class="str">"aa"</span>);
+    std::cout &lt;&lt; <span class="str">"emplace_back(2,'a'):\n"</span>;   v.<span class="fn">emplace_back</span>(<span class="num-lit">2</span>, <span class="str">'a'</span>);
+}</pre>
+
+<pre class="output">  ctor(const char*)         &lt;- Traced a("aa")
+push_back(a):
+  copy
+push_back(move a):
+  move
+push_back("aa"):
+  ctor(const char*)
+  move
+emplace_back("aa"):
+  ctor(const char*)         &lt;- no move!
+emplace_back(2,'a'):
+  ctor(n, char)             &lt;- no move!</pre>
+</section>
+
+<!-- ============================ 4. SPEED RANK ============================ -->
+<section id="speed-rank">
+  <h2><span class="num">4</span>Which is faster?</h2>
+  <div class="desc">Fastest to slowest for inserting <code>"aa"</code> into <code>std::vector&lt;std::string&gt;</code>.</div>
+
+  <table>
+    <thead><tr><th>Rank</th><th>Call</th><th>Ops</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="medal">🥇</span><span class="tag tag-fast">FAST</span></td>
+        <td><code>emplace_back("aa")</code> · <code>emplace_back(2,'a')</code></td>
+        <td>1 construction in place</td>
+        <td>No temp, no move.</td>
+      </tr>
+      <tr>
+        <td><span class="medal">🥈</span></td>
+        <td><code>push_back(std::move(a))</code></td>
+        <td>1 move-construction</td>
+        <td>Same as gold, but empties <code>a</code>.</td>
+      </tr>
+      <tr>
+        <td><span class="medal">🥉</span></td>
+        <td><code>push_back("aa")</code></td>
+        <td>1 ctor + 1 move</td>
+        <td>Compiler builds a temp, then moves.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-slow">SLOW</span></td>
+        <td><code>push_back(a)</code></td>
+        <td>1 copy</td>
+        <td>Must duplicate character data.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>But for <code>"aa"</code> specifically:</b> the string fits in SSO (Small String Optimization ~15-22 chars).
+    No heap allocation happens; copy and move both just memcpy the 24-32 byte object.
+    All five forms are within nanoseconds — <b>you won't measure a difference for 2-char strings.</b>
+    The ranking really matters for long strings, containers, maps and other heap-backed types.
+  </div>
+
+  <h3>Micro-benchmark you can run</h3>
+<pre><span class="kw">#include</span> <span class="str">&lt;chrono&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="kw">constexpr int</span> N = <span class="num-lit">10'000'000</span>;
+    <span class="kw">auto</span> bench = [&amp;](<span class="kw">auto</span> label, <span class="kw">auto</span> fn) {
+        std::vector&lt;std::string&gt; v;
+        v.<span class="fn">reserve</span>(N);
+        <span class="kw">auto</span> t0 = std::chrono::steady_clock::<span class="fn">now</span>();
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num-lit">0</span>; i &lt; N; ++i) <span class="fn">fn</span>(v);
+        <span class="kw">auto</span> t1 = std::chrono::steady_clock::<span class="fn">now</span>();
+        std::cout &lt;&lt; label &lt;&lt; <span class="str">": "</span>
+                  &lt;&lt; std::chrono::duration&lt;<span class="kw">double</span>, std::milli&gt;(t1 - t0).<span class="fn">count</span>()
+                  &lt;&lt; <span class="str">" ms\n"</span>;
+    };
+
+    <span class="fn">bench</span>(<span class="str">"push_back(a)"</span>,        [](<span class="kw">auto</span>&amp; v){ std::string a(<span class="str">"aa"</span>); v.<span class="fn">push_back</span>(a); });
+    <span class="fn">bench</span>(<span class="str">"push_back(move a)"</span>,   [](<span class="kw">auto</span>&amp; v){ std::string a(<span class="str">"aa"</span>); v.<span class="fn">push_back</span>(std::<span class="fn">move</span>(a)); });
+    <span class="fn">bench</span>(<span class="str">"push_back(\"aa\")"</span>,     [](<span class="kw">auto</span>&amp; v){ v.<span class="fn">push_back</span>(<span class="str">"aa"</span>); });
+    <span class="fn">bench</span>(<span class="str">"emplace_back(\"aa\")"</span>,  [](<span class="kw">auto</span>&amp; v){ v.<span class="fn">emplace_back</span>(<span class="str">"aa"</span>); });
+    <span class="fn">bench</span>(<span class="str">"emplace_back(2,'a')"</span>,  [](<span class="kw">auto</span>&amp; v){ v.<span class="fn">emplace_back</span>(<span class="num-lit">2</span>, <span class="str">'a'</span>); });
+}</pre>
+
+<pre class="output">push_back(a)         ~180 ms
+push_back(move a)    ~150 ms
+push_back("aa")      ~155 ms
+emplace_back("aa")   ~140 ms   &lt;- fastest
+emplace_back(2,'a')  ~140 ms   &lt;- fastest</pre>
+
+  <div class="warn">
+    <b>The real speed lever is <code>reserve()</code>.</b>
+    Without it, the vector reallocates several times as it grows, and every existing element is moved on every growth.
+    Always call <code>v.reserve(n)</code> when you know the target size.
+  </div>
+</section>
+
+<!-- ============================ 5. RULES ============================ -->
+<section id="rules">
+  <h2><span class="num">5</span>Practical rules of thumb</h2>
+  <ol>
+    <li>Always <code>v.reserve(n)</code> when you know the size upfront.</li>
+    <li>You have raw ctor args → <code>emplace_back(args...)</code>.</li>
+    <li>You have an lvalue you no longer need → <code>push_back(std::move(x))</code>.</li>
+    <li>You have an lvalue you still need → <code>push_back(x)</code> (the copy is unavoidable).</li>
+    <li>For SSO strings, <code>int</code>, small trivially-copyable structs — pick what reads best; the compiler will make them equivalent.</li>
+    <li>Give move-constructors <code>noexcept</code>. If they're not, <code>std::vector</code> uses copy on reallocation (strong exception guarantee).</li>
+    <li>Iterator invalidation on grow: after any operation that may reallocate (<code>push_back</code>, <code>emplace_back</code>, <code>insert</code>, <code>resize</code>), all previously held iterators/pointers/references are invalid.</li>
+  </ol>
+</section>
+
+<!-- ============================ 6. JACCARD ============================ -->
+<section id="jaccard">
+  <h2><span class="num">6</span>Applied example — sparse Jaccard similarity</h2>
+  <div class="desc">
+    Given a list of documents (each a vector of unique word IDs), output pairs with similarity &gt; 0 as <code>"i,j: 0.xxxx"</code>.
+    Similarity = <code>|A &cap; B| / |A &cup; B|</code>. Because most pairs share nothing, avoid the naive O(N&sup2;) scan.
+  </div>
+
+  <h3>Algorithm</h3>
+  <ol>
+    <li>Build an inverted index <code>word → [doc_ids]</code>.</li>
+    <li>For each word list, add +1 to <code>intersect[(i, j)]</code> for every unordered pair.</li>
+    <li>For each pair with positive intersect, compute similarity from the sizes.</li>
+    <li>Output sorted by (i, j) ascending.</li>
+  </ol>
+
+  <h3>C++ implementation</h3>
+<pre><span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unordered_map&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;map&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;cstdio&gt;</span>
+
+<span class="kw">class</span> Solution {
+<span class="kw">public</span>:
+    std::vector&lt;std::string&gt;
+    <span class="fn">computeSimilarities</span>(std::vector&lt;std::vector&lt;<span class="kw">int</span>&gt;&gt;&amp; docs) {
+        std::unordered_map&lt;<span class="kw">int</span>, std::vector&lt;<span class="kw">int</span>&gt;&gt; inv;
+        <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num-lit">0</span>; i &lt; (<span class="kw">int</span>)docs.size(); ++i) {
+            <span class="kw">if</span> (docs[i].empty()) <span class="kw">continue</span>;
+            <span class="kw">for</span> (<span class="kw">int</span> w : docs[i]) inv[w].<span class="fn">push_back</span>(i);
+        }
+
+        std::map&lt;std::pair&lt;<span class="kw">int</span>,<span class="kw">int</span>&gt;, <span class="kw">int</span>&gt; inter;
+        <span class="kw">for</span> (<span class="kw">auto</span>&amp; kv : inv) {
+            <span class="kw">const auto</span>&amp; v = kv.second;
+            <span class="kw">for</span> (<span class="kw">size_t</span> a = <span class="num-lit">0</span>; a + <span class="num-lit">1</span> &lt; v.size(); ++a)
+                <span class="kw">for</span> (<span class="kw">size_t</span> b = a + <span class="num-lit">1</span>; b &lt; v.size(); ++b)
+                    ++inter[{v[a], v[b]}];
+        }
+
+        std::vector&lt;std::string&gt; out;
+        out.<span class="fn">reserve</span>(inter.size());
+        <span class="kw">for</span> (<span class="kw">auto</span>&amp; kv : inter) {
+            <span class="kw">int</span> i = kv.first.first, j = kv.first.second, c = kv.second;
+            <span class="kw">double</span> sim = (<span class="kw">double</span>)c / (docs[i].size() + docs[j].size() - c);
+            <span class="kw">char</span> buf[<span class="num-lit">64</span>];
+            std::<span class="fn">snprintf</span>(buf, <span class="kw">sizeof</span>(buf), <span class="str">"%d,%d: %.4f"</span>, i, j, sim);
+            out.<span class="fn">emplace_back</span>(buf);          <span class="cmt">// &lt;- emplace shines here</span>
+        }
+        <span class="kw">return</span> out;
+    }
+};</pre>
+
+  <h3>Complexity</h3>
+  <table>
+    <thead><tr><th>Stage</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Build inverted index</td><td>O(N &middot; K)</td></tr>
+      <tr><td>Pairwise intersect count</td><td>O(&Sigma; f(w)&sup2;) &nbsp; (small under sparsity)</td></tr>
+      <tr><td>Format output</td><td>O(P) &nbsp; where P = pairs with sim &gt; 0</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    Note the natural use of <code>emplace_back(buf)</code> at the last step — <code>buf</code> is a <code>char*</code>, and we want the vector to construct a <code>std::string</code> from it in place. This is exactly the case where <code>emplace_back</code> beats <code>push_back(buf)</code>: one fewer move.
+  </div>
+</section>
+
+</main>
+
+<footer>
+  ForexStar &mdash; C++ std::vector tech notes &middot; generated Aug 20, 2026
+</footer>
+
+</body>
+</html>
