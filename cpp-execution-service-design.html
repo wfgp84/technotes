@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ExecutionService — Class Design — Tech Notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #a78bfa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --border: #334155;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  header {
+    padding: 44px 40px 30px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: 0.5px; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 32px 80px; }
+
+  section {
+    margin: 32px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 28px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  section h2 {
+    margin: 0 0 6px;
+    color: var(--accent);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section h2 .num {
+    background: var(--accent);
+    color: #0f172a;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  section h3 { color: var(--accent-2); margin-top: 22px; margin-bottom: 8px; font-size: 17px; }
+  section h4 { color: #cbd5e1; margin-top: 16px; margin-bottom: 6px; font-size: 15px; }
+  section .desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  pre {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    border-left: 3px solid var(--accent);
+    margin: 10px 0;
+  }
+  pre.output { border-left-color: var(--ok); color: #d1fae5; }
+  code {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    word-break: break-word;
+  }
+  .kw { color: #c084fc; }
+  .fn { color: #38bdf8; }
+  .str { color: #86efac; }
+  .cmt { color: #64748b; font-style: italic; }
+  .num-lit { color: #fbbf24; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); color: var(--accent-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no  { color: var(--danger); font-weight: 700; }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-right: 4px;
+  }
+  .tag-iface  { background: #38bdf8; color: #0f172a; }
+  .tag-impl   { background: #a78bfa; color: #1e1b4b; }
+  .tag-value  { background: #34d399; color: #052e1a; }
+  .tag-thread { background: #fb923c; color: #431407; }
+
+  .note   { background: rgba(56, 189, 248, 0.1);  border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #cbd5e1; }
+  .warn   { background: rgba(251, 191, 36, 0.08); border-left: 3px solid var(--warn);   padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #fde68a; }
+  .danger-box { background: rgba(248, 113, 113, 0.08); border-left: 3px solid var(--danger); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #fecaca; }
+
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin-bottom: 24px; }
+  .toc ol { margin: 8px 0 0; padding-left: 24px; columns: 2; }
+  .toc li { margin: 5px 0; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { padding: 20px 32px; text-align: center; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  ul.compact { margin: 6px 0; padding-left: 22px; }
+  ul.compact li { margin: 4px 0; font-size: 14px; }
+  ol.tight { margin: 8px 0; padding-left: 22px; }
+  ol.tight li { margin: 6px 0; font-size: 14px; }
+
+  .diagram {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 18px 12px;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+  .diagram-caption {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  .flow { background: var(--code-bg); border-radius: 8px; padding: 14px 18px; margin: 12px 0; font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.65; white-space: pre; overflow-x: auto; }
+  .flow .q { color: var(--accent); }
+  .flow .a { color: var(--ok); }
+  .flow .m { color: var(--accent-2); }
+  .flow .n { color: var(--warn); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; margin: 10px 0 4px; color: var(--muted); }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
+
+  @media (max-width: 900px) { .toc ol { columns: 1; } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.mermaid) {
+      window.mermaid.initialize({
+        startOnLoad: true,
+        theme: 'base',
+        themeVariables: {
+          primaryColor:       '#1e293b',
+          primaryTextColor:   '#e2e8f0',
+          primaryBorderColor: '#38bdf8',
+          lineColor:          '#94a3b8',
+          secondaryColor:     '#273449',
+          tertiaryColor:      '#0b1220',
+          fontFamily:         'JetBrains Mono, Consolas, monospace',
+          fontSize:           '13px'
+        },
+        flowchart: { curve: 'basis' },
+        sequence:  { actorMargin: 50, mirrorActors: false }
+      });
+    }
+  });
+</script>
+</head>
+<body>
+<header>
+  <h1>ExecutionService &mdash; Class Design</h1>
+  <div class="sub">
+    Asynchronous task execution with synchronous completion on the main thread &mdash;
+    the <code>oam::async</code> subsystem in <b>liboam</b>.
+    <br>C++11 &middot; last updated Aug 24, 2026
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#tldr">1. TL;DR</a></li>
+    <li><a href="#big-picture">2. Big picture</a></li>
+    <li><a href="#class-diagram">3. Class diagram</a></li>
+    <li><a href="#responsibilities">4. Responsibilities per class</a></li>
+    <li><a href="#sequence">5. Runtime sequence</a></li>
+    <li><a href="#threading">6. Threading model</a></li>
+    <li><a href="#lifecycle">7. Task lifecycle &amp; state machine</a></li>
+    <li><a href="#patterns">8. Design patterns used</a></li>
+    <li><a href="#concurrency">9. Concurrency internals</a></li>
+    <li><a href="#pitfalls">10. Pitfalls &amp; notes</a></li>
+    <li><a href="#files">11. Source file map</a></li>
+  </ol>
+</div>
+
+<!-- ==================== 1. TL;DR ==================== -->
+<section id="tldr">
+  <h2><span class="num">1</span>TL;DR</h2>
+  <div class="desc">
+    <code>ExecutionService</code> is the façade that lets application code fire off work
+    on a background thread pool and receive the completion callback <b>back on the main
+    (dispatcher) thread</b> &mdash; so user code never has to worry about locking around
+    the result.
+  </div>
+
+  <ul class="compact">
+    <li><b>Public API</b>: <code>schedule(Task) &rarr; OperationId</code> and <code>cancel(OperationId) &rarr; bool</code>.</li>
+    <li><b>Split of work</b>: <code>Task::onExecution()</code> runs on a worker thread; <code>Task::onCompletion(status)</code> runs on the main thread.</li>
+    <li><b>Wiring</b>: composed of three collaborators &mdash; <code>IExecutor</code> (thread pool), <code>ITaskCompletionHandler</code> (bridge), and a <code>Dispatcher</code> (SIC message bus).</li>
+    <li><b>Ownership</b>: <code>ExecutionService</code> owns the executor and completion handler via <code>unique_ptr</code>; the dispatcher is externally owned and held as <code>DispatcherPtr</code>.</li>
+    <li><b>Shutdown</b> is deterministic: destructor calls <code>shutdown()</code> &rarr; <code>cancelAll()</code> + <code>stop()</code>, joining all workers.</li>
+  </ul>
+
+  <div class="note">
+    <b>Why not just <code>std::async</code>?</b> Because completions from <code>std::async</code>
+    fire on some worker thread and would force every user callback to be thread-safe.
+    <code>ExecutionService</code> uses a SIC (Signal / Inter-Component) notification to route the
+    completion back to the main event loop, giving you <b>free single-threaded semantics</b>
+    for the result handler.
+  </div>
+</section>
+
+<!-- ==================== 2. BIG PICTURE ==================== -->
+<section id="big-picture">
+  <h2><span class="num">2</span>Big picture</h2>
+
+  <p>Three collaborators, two threads, one message hop:</p>
+
+  <div class="diagram">
+    <div class="mermaid">
+flowchart LR
+    subgraph Main["Main / Dispatcher thread"]
+      App["Application code"]
+      ES["ExecutionService"]
+      DSP["Dispatcher"]
+    end
+    subgraph Workers["Worker thread pool"]
+      EX["Executor + workers"]
+    end
+    TCH["TaskCompletionHandler"]
+
+    App -- "schedule(task)" --> ES
+    ES  -- "enqueue(op)"    --> EX
+    EX  -- "execute()"      --> EX
+    EX  -- "take(task, status)" --> TCH
+    TCH -- "send TaskNotification" --> DSP
+    DSP -- "handleTaskNotification" --> ES
+    ES  -- "complete(taskId)" --> TCH
+    TCH -- "onCompletion(status)" --> App
+    </div>
+    <div class="diagram-caption">Fig. 1 &mdash; Data flow, colored by thread of execution.</div>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:#38bdf8"></span>Interface</span>
+    <span><span class="sw" style="background:#a78bfa"></span>Concrete impl</span>
+    <span><span class="sw" style="background:#34d399"></span>Value / DTO</span>
+    <span><span class="sw" style="background:#fb923c"></span>Threaded component</span>
+  </div>
+</section>
+
+<!-- ==================== 3. CLASS DIAGRAM ==================== -->
+<section id="class-diagram">
+  <h2><span class="num">3</span>Class diagram</h2>
+  <div class="desc">
+    All types live in namespace <code>oam::async</code>. Owning relationships are
+    <code>unique_ptr</code>; the back-pointer from <code>Operation</code> to
+    <code>ITaskCompletionHandler</code> is a raw pointer (non-owning).
+  </div>
+
+  <div class="diagram">
+    <div class="mermaid">
+classDiagram
+    direction LR
+
+    class IExecutionService {
+      <<interface>>
+      +schedule(unique_ptr~Task~) OperationId
+      +cancel(OperationId) bool
+    }
+
+    class ExecutionService {
+      -DispatcherPtr dispatcher_
+      -unique_ptr~IExecutor~ executor_
+      -unique_ptr~ITaskCompletionHandler~ completionHandler_
+      +ExecutionService(executor, handler, dispatcher)
+      +~ExecutionService()
+      +schedule(unique_ptr~Task~) OperationId
+      +cancel(OperationId) bool
+      +shutdown() void
+      -handleTaskNotification(TaskNotification) void
+    }
+
+    class IExecutor {
+      <<interface>>
+      +enqueue(OperationPtr) void
+      +cancel(OperationId) bool
+      +cancelNextPendingOperation() void
+      +cancelAll() void
+      +completed(OperationId) void
+      +servingOperationsNumber() size_t
+      +start(nrThreads, createQueue) void
+      +stop() void
+    }
+
+    class Executor {
+      -ConcurrentQueue~OperationPtr~ pendingOperations_
+      -map~OperationId,OperationPtr~ servingOperations_
+      -recursive_mutex servingOperationsMutex_
+      -ExecutorWorkerPool pool_
+      -startWith(unsigned) void
+    }
+
+    class ITaskCompletionHandler {
+      <<interface>>
+      +take(unique_ptr~Task~, TaskStatus, OperationId) void
+      +complete(size_t taskId) void
+    }
+
+    class TaskCompletionHandler {
+      -IExecutor* executor_
+      -CommunicationPointPtr communicationPoint_
+      -SignalAllocatorPtr signalAllocator_
+      -recursive_mutex storageMutex_
+      -map~size_t,ExecutedTask~ completingTaskStorage_
+    }
+
+    class Task {
+      <<abstract>>
+      +onExecution() void
+      +onCompletion(TaskStatus) void
+    }
+
+    class Operation {
+      -AtomicState state_
+      -TaskStatus status_
+      -unique_ptr~Task~ task_
+      -TaskCompletionHandlerPtr handler_
+      +id() OperationId
+      +taskState() TaskState
+      +status() TaskStatus
+      +execute() void
+      +complete() void
+    }
+
+    class TaskStatus {
+      <<struct>>
+      -bool errorOccurred_
+      -string what_
+      +what() const_char_ptr
+      +operator_bool() bool
+    }
+
+    class TaskState {
+      <<enum>>
+      TASK_PENDING
+      TASK_RUNNING
+      TASK_CANCELED
+      TASK_FINISHED
+    }
+
+    class Dispatcher {
+      <<external>>
+      +subscribe(handler, target)
+    }
+
+    ExecutionService         ..|> IExecutionService
+    Executor                 ..|> IExecutor
+    TaskCompletionHandler    ..|> ITaskCompletionHandler
+
+    ExecutionService o--  IExecutor              : owns
+    ExecutionService o--  ITaskCompletionHandler : owns
+    ExecutionService -->  Dispatcher             : subscribes
+
+    Executor              -->  Operation : enqueues / tracks
+    TaskCompletionHandler ..>  Operation : receives via take()
+    TaskCompletionHandler -->  IExecutor : completed()
+
+    Operation o-- Task       : owns
+    Operation --> ITaskCompletionHandler : back-ref
+    Operation --> TaskStatus : holds
+    Operation --> TaskState  : atomic state
+    </div>
+    <div class="diagram-caption">Fig. 2 &mdash; UML class diagram of the <code>oam::async</code> subsystem.</div>
+  </div>
+</section>
+
+<!-- ==================== 4. RESPONSIBILITIES ==================== -->
+<section id="responsibilities">
+  <h2><span class="num">4</span>Responsibilities per class</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:22%">Class</th>
+        <th style="width:12%">Kind</th>
+        <th>Responsibility</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>IExecutionService</code></td>
+        <td><span class="tag tag-iface">interface</span></td>
+        <td>Public façade: <code>schedule</code> / <code>cancel</code>. Only thing the application should depend on.</td>
+      </tr>
+      <tr>
+        <td><code>ExecutionService</code></td>
+        <td><span class="tag tag-impl">impl</span></td>
+        <td>Assembles the collaborators, subscribes to the dispatcher, and forwards messages back to <code>TaskCompletionHandler::complete</code>.</td>
+      </tr>
+      <tr>
+        <td><code>IExecutor</code> / <code>Executor</code></td>
+        <td><span class="tag tag-iface">interface</span> <span class="tag tag-thread">threaded</span></td>
+        <td>Thread pool + pending queue + serving map. Owns worker threads and lifecycle (<code>start</code>/<code>stop</code>).</td>
+      </tr>
+      <tr>
+        <td><code>ITaskCompletionHandler</code> / <code>TaskCompletionHandler</code></td>
+        <td><span class="tag tag-iface">interface</span> <span class="tag tag-impl">impl</span></td>
+        <td>Bridges worker &rarr; main thread using a SIC signal. Holds completed tasks in <code>completingTaskStorage_</code> until the main thread picks them up.</td>
+      </tr>
+      <tr>
+        <td><code>Task</code></td>
+        <td><span class="tag tag-iface">abstract</span></td>
+        <td>User-supplied unit of work. Split into <code>onExecution()</code> (worker thread) and <code>onCompletion(status)</code> (main thread).</td>
+      </tr>
+      <tr>
+        <td><code>Operation</code></td>
+        <td><span class="tag tag-value">value</span></td>
+        <td>Task + state + status envelope handed around inside the subsystem. Users never see it.</td>
+      </tr>
+      <tr>
+        <td><code>TaskStatus</code></td>
+        <td><span class="tag tag-value">DTO</span></td>
+        <td>Exception carrier. Convertible to <code>bool</code>: <code>true</code> means the task threw.</td>
+      </tr>
+      <tr>
+        <td><code>TaskState</code></td>
+        <td><span class="tag tag-value">enum</span></td>
+        <td><code>PENDING &rarr; RUNNING &rarr; FINISHED</code>, with <code>CANCELED</code> as a terminal branch.</td>
+      </tr>
+      <tr>
+        <td><code>OperationId</code></td>
+        <td><span class="tag tag-value">alias</span></td>
+        <td><code>typedef std::size_t</code>. Returned by <code>schedule()</code>; the only handle the user gets.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== 5. SEQUENCE ==================== -->
+<section id="sequence">
+  <h2><span class="num">5</span>Runtime sequence</h2>
+  <div class="desc">
+    One happy-path scheduling &rarr; completion round-trip. Note the thread-of-execution
+    handoffs at the arrows crossing <code>TaskCompletionHandler</code>.
+  </div>
+
+  <div class="diagram">
+    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant App as Application
+    participant ES  as ExecutionService
+    participant EX  as Executor / Worker
+    participant TCH as TaskCompletionHandler
+    participant DSP as Dispatcher
+
+    App->>ES: schedule(task)
+    ES->>ES: MakeOperation(task, handler)
+    ES->>EX: enqueue(operation)
+    ES-->>App: OperationId
+
+    Note over EX: Worker thread
+    EX->>EX: dequeue -> operation.execute()
+    EX->>EX: task.onExecution()
+    EX->>TCH: take(task, status, opId)
+    TCH->>DSP: send(TaskNotification{taskId})
+
+    Note over ES,DSP: Main thread
+    DSP->>ES: handleTaskNotification(msg)
+    ES->>TCH: complete(msg.taskId)
+    TCH->>App: task.onCompletion(status)
+    TCH->>EX: completed(opId)
+    </div>
+    <div class="diagram-caption">Fig. 3 &mdash; Sequence: schedule &rarr; execute &rarr; notify &rarr; complete.</div>
+  </div>
+
+  <h3>Cancellation</h3>
+  <p><code>cancel(opId)</code> is a straight delegation to <code>Executor::cancel</code>.
+  Only <b>pending</b> operations can be cancelled &mdash; if the operation is already
+  <code>RUNNING</code>, the state transition <code>RUNNING &rarr; CANCELED</code> is forbidden and
+  <code>cancel()</code> returns <code>false</code>.</p>
+</section>
+
+<!-- ==================== 6. THREADING ==================== -->
+<section id="threading">
+  <h2><span class="num">6</span>Threading model</h2>
+
+  <table>
+    <thead>
+      <tr><th>Runs on</th><th>Code path</th><th>Guarantees</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Main / dispatcher</b></td>
+        <td>
+          <code>ExecutionService::schedule</code><br>
+          <code>ExecutionService::cancel</code><br>
+          <code>ExecutionService::handleTaskNotification</code><br>
+          <code>TaskCompletionHandler::complete</code><br>
+          <code>Task::onCompletion</code>
+        </td>
+        <td>Serialized by the event loop &mdash; user code needs no locking.</td>
+      </tr>
+      <tr>
+        <td><b>Worker (pool)</b></td>
+        <td>
+          <code>Executor</code> worker loop<br>
+          <code>Operation::execute</code><br>
+          <code>Task::onExecution</code><br>
+          <code>TaskCompletionHandler::take</code>
+        </td>
+        <td>Runs in parallel across <code>nrOfParallelJobs</code> threads.
+            <code>Task::onExecution</code> owns its data; sharing must be thread-safe.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>Data-passing rule:</b> the header documents that <code>Task</code> should receive
+    its inputs <b>by move or copy</b>. Passing raw pointers/references from the main thread
+    into an <code>onExecution</code> that reads them concurrently is your problem, not the
+    service's.
+  </div>
+</section>
+
+<!-- ==================== 7. LIFECYCLE ==================== -->
+<section id="lifecycle">
+  <h2><span class="num">7</span>Task lifecycle &amp; state machine</h2>
+
+  <div class="diagram">
+    <div class="mermaid">
+stateDiagram-v2
+    [*] --> TASK_PENDING : schedule()
+    TASK_PENDING --> TASK_RUNNING  : worker picks up
+    TASK_PENDING --> TASK_CANCELED : cancel() while queued
+    TASK_RUNNING --> TASK_FINISHED : onExecution() returns
+    TASK_RUNNING --> TASK_FINISHED : onExecution() throws\n(status carries exception)
+    TASK_CANCELED --> [*]
+    TASK_FINISHED --> [*] : onCompletion() delivered
+    </div>
+    <div class="diagram-caption">Fig. 4 &mdash; Task state transitions. <code>RUNNING &rarr; CANCELED</code> and <code>CANCELED &rarr; RUNNING</code> are explicitly forbidden.</div>
+  </div>
+
+  <ul class="compact">
+    <li>A thrown exception in <code>onExecution()</code> is <b>captured</b> into
+        <code>TaskStatus</code>; the task still transitions to <code>FINISHED</code> and
+        <code>onCompletion()</code> is still called &mdash; with <code>status</code> converting to <code>true</code>.</li>
+    <li>Cancellation is a one-way, best-effort operation. If the worker has already picked
+        up the operation, <code>cancel()</code> returns <code>false</code>.</li>
+  </ul>
+</section>
+
+<!-- ==================== 8. PATTERNS ==================== -->
+<section id="patterns">
+  <h2><span class="num">8</span>Design patterns used</h2>
+
+  <table>
+    <thead><tr><th>Pattern</th><th>Where</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Strategy</b></td>
+        <td><code>IExecutor</code>, <code>ITaskCompletionHandler</code></td>
+        <td>Swap real pool for a mock or an inline executor in tests without touching <code>ExecutionService</code>.</td>
+      </tr>
+      <tr>
+        <td><b>Facade</b></td>
+        <td><code>IExecutionService</code></td>
+        <td>Hides the 3-collaborator wiring behind two methods.</td>
+      </tr>
+      <tr>
+        <td><b>Command</b></td>
+        <td><code>Task</code>, <code>Operation</code></td>
+        <td><code>Task</code> is a user-supplied command; <code>Operation</code> is the framework's envelope that adds state + status.</td>
+      </tr>
+      <tr>
+        <td><b>Observer / Pub-Sub</b></td>
+        <td><code>Dispatcher::subscribe(handleTaskNotification)</code></td>
+        <td>Decouples the worker-side notification from the main-thread handler.</td>
+      </tr>
+      <tr>
+        <td><b>Thread pool</b></td>
+        <td><code>Executor</code> + <code>ExecutorWorkerPool</code></td>
+        <td>Amortises thread create/destroy across many small tasks.</td>
+      </tr>
+      <tr>
+        <td><b>RAII</b></td>
+        <td><code>~ExecutionService</code> &rarr; <code>shutdown</code></td>
+        <td>Deterministic worker join on scope exit &mdash; no leaked threads.</td>
+      </tr>
+      <tr>
+        <td><b>Dependency Injection</b></td>
+        <td>Ctor takes <code>unique_ptr&lt;IExecutor&gt;</code>, <code>unique_ptr&lt;ITaskCompletionHandler&gt;</code>, <code>DispatcherPtr</code></td>
+        <td>Explicit ownership + test seams via <code>ExecutionServiceMock</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== 9. CONCURRENCY INTERNALS ==================== -->
+<section id="concurrency">
+  <h2><span class="num">9</span>Concurrency internals</h2>
+
+  <h3>Executor storage</h3>
+<pre><span class="kw">class</span> <span class="fn">Executor</span> : <span class="kw">public</span> IExecutor {
+    <span class="cmt">// producer (main) &harr; consumer (workers), MPMC-safe:</span>
+    ConcurrentQueue&lt;OperationPtr&gt;                pendingOperations_;
+
+    <span class="cmt">// id &rarr; running operation, guarded by mutex:</span>
+    std::map&lt;OperationId, OperationPtr&gt;          servingOperations_;
+    <span class="kw">mutable</span> std::recursive_mutex               servingOperationsMutex_;
+
+    detail::ExecutorWorkerPool                   pool_;
+};</pre>
+
+  <ul class="compact">
+    <li><b><code>pendingOperations_</code></b>: FIFO of enqueued but not-yet-picked-up operations.
+        A worker calls <code>dequeue()</code>, moves the operation into <code>servingOperations_</code>,
+        then executes.</li>
+    <li><b><code>servingOperations_</code></b>: id-indexed so <code>completed(id)</code> can drop the
+        entry cheaply on the main thread.</li>
+    <li>The mutex is <b>recursive</b> to allow the same worker to touch the map twice inside
+        one operation lifecycle without deadlocking itself.</li>
+  </ul>
+
+  <h3>Operation state</h3>
+<pre><span class="kw">struct</span> Operation::AtomicState {
+    <span class="kw">mutable</span> std::mutex stateMutex_;
+    TaskState           state_;
+
+    TaskState <span class="fn">get</span>() <span class="kw">const</span>;
+    <span class="kw">bool</span>      <span class="fn">swap</span>(TaskState&amp; other);   <span class="cmt">// enforces legal transitions</span>
+};</pre>
+
+  <p><code>swap()</code> is the only mutator &mdash; it rejects the two illegal transitions
+  (<code>RUNNING &lrarr; CANCELED</code>) atomically, which is what makes
+  <code>cancel(opId)</code> race-free against a worker that just picked up the operation.</p>
+
+  <h3>Completion storage</h3>
+<pre><span class="kw">class</span> <span class="fn">TaskCompletionHandler</span> : <span class="kw">public</span> ITaskCompletionHandler {
+    <span class="kw">struct</span> ExecutedTask {
+        TaskIntrusivePtr task;
+        TaskStatus       status;
+        OperationId      operationId;
+    };
+
+    std::map&lt;TaskHashValue, ExecutedTask&gt;  completingTaskStorage_;
+    <span class="kw">mutable</span> std::recursive_mutex          storageMutex_;
+};</pre>
+
+  <p>The worker thread parks the finished <code>ExecutedTask</code> in the map <b>keyed by a hash</b>,
+  then fires a SIC <code>TaskNotification</code> carrying only that hash. The main thread
+  looks the entry up in <code>complete()</code>, calls <code>Task::onCompletion</code>, and erases it.
+  The hash keeps the notification message tiny (fits an <code>std::size_t</code>).</p>
+</section>
+
+<!-- ==================== 10. PITFALLS ==================== -->
+<section id="pitfalls">
+  <h2><span class="num">10</span>Pitfalls &amp; notes</h2>
+
+  <div class="danger-box">
+    <b>Don't destroy an <code>ExecutionService</code> from inside a <code>Task::onCompletion</code>.</b>
+    Destruction calls <code>shutdown()</code> which stops the pool and touches the same
+    <code>TaskCompletionHandler</code> that's currently running you. Route service teardown
+    through a subsequent dispatcher tick.
+  </div>
+
+  <div class="warn">
+    <b>Cancellation is best-effort.</b> Once a worker has moved the operation from
+    <code>pendingOperations_</code> into <code>servingOperations_</code>, <code>cancel()</code> returns
+    <code>false</code>. If your task must be interruptible, poll a cooperative flag inside
+    <code>onExecution()</code>.
+  </div>
+
+  <div class="warn">
+    <b>Shared state passed by pointer/reference is on you.</b> The interface documents that
+    tasks should receive their data by move/copy. If you must share, add your own mutex.
+  </div>
+
+  <div class="note">
+    <b>Testing tip.</b> Use <code>ExecutionServiceMock</code> (see
+    <code>include/oam/mocks/ExecutionServiceMock.h</code>) to substitute a synchronous stub
+    in tests &mdash; the interface-based design was put there for exactly this.
+  </div>
+</section>
+
+<!-- ==================== 11. FILES ==================== -->
+<section id="files">
+  <h2><span class="num">11</span>Source file map</h2>
+
+  <table>
+    <thead><tr><th>Role</th><th>Header</th><th>Impl</th></tr></thead>
+    <tbody>
+      <tr><td>Facade interface</td><td><code>include/oam/async/IExecutionService.h</code></td><td>&mdash;</td></tr>
+      <tr><td>Facade impl</td><td><code>include/oam/async/ExecutionService.h</code></td><td><code>src/async/ExecutionService.cpp</code></td></tr>
+      <tr><td>Executor interface</td><td><code>include/oam/async/IExecutor.h</code></td><td>&mdash;</td></tr>
+      <tr><td>Executor impl</td><td><code>include/oam/async/Executor.h</code></td><td><code>src/async/Executor.cpp</code></td></tr>
+      <tr><td>Completion handler</td><td><code>include/oam/async/ITaskCompletionHandler.h</code>,<br><code>include/oam/async/TaskCompletionHandler.h</code></td><td><code>src/async/TaskCompletionHandler.cpp</code></td></tr>
+      <tr><td>Task base</td><td><code>include/oam/async/Task.h</code></td><td>&mdash; (abstract)</td></tr>
+      <tr><td>Operation envelope</td><td><code>include/oam/async/Operation.h</code></td><td><code>src/async/Operation.cpp</code></td></tr>
+      <tr><td>Status / State</td><td><code>include/oam/async/TaskStatus.h</code>, <code>include/oam/async/TaskState.h</code></td><td><code>src/async/TaskStatus.cpp</code></td></tr>
+      <tr><td>Mock (tests)</td><td><code>include/oam/mocks/ExecutionServiceMock.h</code></td><td>&mdash;</td></tr>
+      <tr><td>Tests</td><td>&mdash;</td><td><code>test/tests/AsyncExecutionServiceTests.cpp</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  Built with plain HTML/CSS + <a href="https://mermaid.js.org/" style="color:var(--accent)">Mermaid</a> for diagrams.
+  <br>Part of <a href="index.html" style="color:var(--accent)">Tech Notes</a>.
+</footer>
+</body>
+</html>
