@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Sparse Similarity &amp; Red-Black Tree — Tech Notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #a78bfa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --red-node: #ef4444;
+    --black-node: #1f2937;
+    --border: #334155;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  header {
+    padding: 44px 40px 30px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: 0.5px; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 32px 80px; }
+
+  section {
+    margin: 32px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 28px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  section h2 {
+    margin: 0 0 6px;
+    color: var(--accent);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section h2 .num {
+    background: var(--accent);
+    color: #0f172a;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  section h3 { color: var(--accent-2); margin-top: 22px; margin-bottom: 8px; font-size: 17px; }
+  section h4 { color: #cbd5e1; margin-top: 16px; margin-bottom: 6px; font-size: 15px; }
+  section .desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  pre {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    border-left: 3px solid var(--accent);
+    margin: 10px 0;
+  }
+  pre.output { border-left-color: var(--ok); color: #d1fae5; }
+  code {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    word-break: break-word;
+  }
+  .kw { color: #c084fc; }
+  .fn { color: #38bdf8; }
+  .str { color: #86efac; }
+  .cmt { color: #64748b; font-style: italic; }
+  .num-lit { color: #fbbf24; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); color: var(--accent-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+
+  .note { background: rgba(56, 189, 248, 0.1); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #cbd5e1; }
+  .warn { background: rgba(251, 191, 36, 0.08); border-left: 3px solid var(--warn); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #fde68a; }
+
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin-bottom: 24px; }
+  .toc ol { margin: 8px 0 0; padding-left: 24px; columns: 2; }
+  .toc li { margin: 5px 0; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { padding: 20px 32px; text-align: center; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  ul.compact { margin: 6px 0; padding-left: 22px; }
+  ul.compact li { margin: 4px 0; font-size: 14px; }
+  ol.tight { margin: 8px 0; padding-left: 22px; }
+  ol.tight li { margin: 6px 0; font-size: 14px; }
+
+  /* Red-black tree SVG */
+  .tree-svg { display: block; margin: 12px auto; background: var(--code-bg); border-radius: 8px; padding: 12px; max-width: 100%; }
+  .tree-svg text { font-family: "JetBrains Mono", monospace; font-size: 14px; fill: white; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+  .tree-svg .rn { fill: var(--red-node); stroke: #7f1d1d; stroke-width: 1.5; }
+  .tree-svg .bn { fill: var(--black-node); stroke: #cbd5e1; stroke-width: 1.5; }
+  .tree-svg .edge { stroke: #64748b; stroke-width: 2; fill: none; }
+  .tree-svg .nilbox { fill: #334155; stroke: #64748b; stroke-width: 1; font-size: 10px; fill-opacity: 0.6; }
+
+  @media (max-width: 900px) { .toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>稀疏相似度 &middot; 红黑树</h1>
+  <div class="sub">
+    Part 1 &mdash; Sparse Jaccard similarity via inverted index &nbsp;|&nbsp;
+    Part 2 &mdash; Red-Black Tree deep dive (why std::map uses it)
+    <br>Written for C++11/17/20 &middot; last updated Aug 23, 2026
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#sparse-problem">1.1 &nbsp; 稀疏相似度 &mdash; 问题</a></li>
+    <li><a href="#sparse-inverted">1.2 &nbsp; 倒排索引法</a></li>
+    <li><a href="#sparse-impl">1.3 &nbsp; C++ / Python 实现</a></li>
+    <li><a href="#sparse-optim">1.4 &nbsp; 优化 &amp; 大规模 MinHash</a></li>
+    <li><a href="#rbt-what">2.1 &nbsp; 红黑树 &mdash; 5 条不变量</a></li>
+    <li><a href="#rbt-why">2.2 &nbsp; 为什么 std::map 用红黑树</a></li>
+    <li><a href="#rbt-rotate">2.3 &nbsp; 旋转 + 重染色</a></li>
+    <li><a href="#rbt-insert">2.4 &nbsp; 插入的 4 个 case</a></li>
+    <li><a href="#rbt-delete">2.5 &nbsp; 删除概览</a></li>
+    <li><a href="#rbt-compare">2.6 &nbsp; 与其它树的对比</a></li>
+  </ol>
+</div>
+
+<!-- ================================================================== -->
+<!--                        PART 1 - SPARSE SIMILARITY                    -->
+<!-- ================================================================== -->
+
+<section id="sparse-problem">
+  <h2><span class="num">1.1</span>稀疏相似度 &mdash; 问题</h2>
+  <div class="desc">给一堆集合/文档，任意两个的相似度都接近 0（几乎不相交），要高效算出所有 sim &gt; 0 的对。LeetCode 面试题 17.26 就是这类问题的典型。</div>
+
+  <h3>模型</h3>
+  <ul class="compact">
+    <li>输入：N 个集合 D<sub>0</sub>, D<sub>1</sub>, &hellip;, D<sub>N-1</sub>，每个含互不重复的元素。</li>
+    <li>相似度：Jaccard <code>J(A, B) = |A &cap; B| / |A &cup; B|</code>。</li>
+    <li>稀疏假设：J(D<sub>i</sub>, D<sub>j</sub>) &approx; 0 对大多数 (i, j) 成立。</li>
+    <li>输出：所有 J &gt; 0 的 (i, j) 及 J 值。</li>
+  </ul>
+
+  <h3>为什么不能 O(N&sup2;)</h3>
+  <ul class="compact">
+    <li>两两比较：外层 <code>C(N,2)</code> 对，内层每对求交集 O(K)。</li>
+    <li>N = 10<sup>4</sup> 时约 5&times;10<sup>7</sup> 对，10<sup>9</sup> 级操作 &mdash; 太慢。</li>
+    <li>更糟：稀疏假设下 99% 的对返回 0，全是浪费。</li>
+  </ul>
+</section>
+
+<section id="sparse-inverted">
+  <h2><span class="num">1.2</span>倒排索引法 &mdash; 从 &quot;词&quot; 出发</h2>
+  <div class="desc">只有共享至少一个元素的文档对才可能有正相似度。用倒排索引把 &quot;文档 &rarr; 词&quot; 反转成 &quot;词 &rarr; 文档&quot;。</div>
+
+  <h3>三步走</h3>
+  <ol class="tight">
+    <li><b>建倒排索引</b> <code>word &rarr; [doc_ids]</code> &mdash; O(N&middot;K)</li>
+    <li><b>枚举 posting list 内的对</b>，给 <code>intersect[(i,j)]</code> 计数 +1</li>
+    <li><b>遍历非零 intersect</b>，用 <code>|D<sub>i</sub>| + |D<sub>j</sub>| - c</code> 得到并集大小，算 Jaccard</li>
+  </ol>
+
+  <div class="note">
+    <b>核心洞察：</b> 第 2 步的工作量是 <b>&Sigma;<sub>w</sub> f(w)&sup2;</b>，其中 f(w) 是词 w 出现在多少个文档里。
+    稀疏 &rarr; 每个 f(w) 普遍很小 &rarr; &Sigma; f(w)&sup2; &lt;&lt; N&sup2;。这就是稀疏假设的红利。
+  </div>
+
+  <h3>倒排索引长这样</h3>
+<pre><span class="cmt">// 正排（原始）:</span>
+doc 0: [apple, banana, cherry]
+doc 1: [banana, date]
+doc 2: [apple, cherry, elderberry]
+
+<span class="cmt">// 倒排:</span>
+apple      -&gt; [0, 2]
+banana     -&gt; [0, 1]
+cherry     -&gt; [0, 2]
+date       -&gt; [1]
+elderberry -&gt; [2]</pre>
+
+  <p style="color:var(--muted);font-size:13px">按 doc_id 升序 push_back，每个 posting list 天然升序 &rarr; (i, j) 里 i &lt; j 天然成立，不需要 swap。</p>
+</section>
+
+<section id="sparse-impl">
+  <h2><span class="num">1.3</span>C++ / Python 实现</h2>
+
+  <h3>C++</h3>
+<pre><span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;string&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;unordered_map&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;map&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;cstdio&gt;</span>
+
+std::vector&lt;std::string&gt;
+<span class="fn">computeSimilarities</span>(std::vector&lt;std::vector&lt;<span class="kw">int</span>&gt;&gt;&amp; docs) {
+    <span class="kw">const int</span> n = (<span class="kw">int</span>)docs.size();
+
+    <span class="cmt">// 1) 倒排索引：word -&gt; [doc_id 升序]</span>
+    std::unordered_map&lt;<span class="kw">int</span>, std::vector&lt;<span class="kw">int</span>&gt;&gt; inv;
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num-lit">0</span>; i &lt; n; ++i) {
+        <span class="kw">if</span> (docs[i].empty()) <span class="kw">continue</span>;              <span class="cmt">// 忽略空文档</span>
+        <span class="kw">for</span> (<span class="kw">int</span> w : docs[i]) inv[w].<span class="fn">push_back</span>(i);
+    }
+
+    <span class="cmt">// 2) 用 std::map 保证输出天然按 (i,j) 升序</span>
+    std::map&lt;std::pair&lt;<span class="kw">int</span>,<span class="kw">int</span>&gt;, <span class="kw">int</span>&gt; inter;
+    <span class="kw">for</span> (<span class="kw">auto</span>&amp; kv : inv) {
+        <span class="kw">const auto</span>&amp; v = kv.second;
+        <span class="kw">for</span> (<span class="kw">size_t</span> a = <span class="num-lit">0</span>; a + <span class="num-lit">1</span> &lt; v.size(); ++a)
+            <span class="kw">for</span> (<span class="kw">size_t</span> b = a + <span class="num-lit">1</span>; b &lt; v.size(); ++b)
+                ++inter[{v[a], v[b]}];
+    }
+
+    <span class="cmt">// 3) Jaccard 公式并格式化</span>
+    std::vector&lt;std::string&gt; out;
+    out.<span class="fn">reserve</span>(inter.size());
+    <span class="kw">for</span> (<span class="kw">auto</span>&amp; kv : inter) {
+        <span class="kw">int</span> i = kv.first.first, j = kv.first.second, c = kv.second;
+        <span class="kw">double</span> sim = (<span class="kw">double</span>)c
+                   / (docs[i].size() + docs[j].size() - c);
+        <span class="kw">char</span> buf[<span class="num-lit">64</span>];
+        std::<span class="fn">snprintf</span>(buf, <span class="kw">sizeof</span>(buf), <span class="str">"%d,%d: %.4f"</span>, i, j, sim);
+        out.<span class="fn">emplace_back</span>(buf);
+    }
+    <span class="kw">return</span> out;
+}</pre>
+
+  <h3>Python</h3>
+<pre><span class="kw">from</span> collections <span class="kw">import</span> defaultdict
+
+<span class="kw">def</span> <span class="fn">computeSimilarities</span>(docs):
+    inv = <span class="fn">defaultdict</span>(list)
+    <span class="kw">for</span> i, d <span class="kw">in</span> <span class="fn">enumerate</span>(docs):
+        <span class="kw">for</span> w <span class="kw">in</span> d:
+            inv[w].<span class="fn">append</span>(i)
+
+    inter = <span class="fn">defaultdict</span>(int)
+    <span class="kw">for</span> indices <span class="kw">in</span> inv.<span class="fn">values</span>():
+        <span class="kw">for</span> a <span class="kw">in</span> <span class="fn">range</span>(<span class="fn">len</span>(indices)):
+            <span class="kw">for</span> b <span class="kw">in</span> <span class="fn">range</span>(a + <span class="num-lit">1</span>, <span class="fn">len</span>(indices)):
+                inter[(indices[a], indices[b])] += <span class="num-lit">1</span>
+
+    result = <span class="fn">sorted</span>(
+        (i, j, c / (<span class="fn">len</span>(docs[i]) + <span class="fn">len</span>(docs[j]) - c))
+        <span class="kw">for</span> (i, j), c <span class="kw">in</span> inter.<span class="fn">items</span>()
+    )
+    <span class="kw">return</span> [<span class="str">f"</span>{i}<span class="str">,</span>{j}<span class="str">: </span>{s<span class="str">:.4f</span>}<span class="str">"</span> <span class="kw">for</span> i, j, s <span class="kw">in</span> result]</pre>
+
+  <h3>关键行剖析: <code>++inter[{v[a], v[b]}]</code></h3>
+  <ol class="tight">
+    <li><code>{v[a], v[b]}</code> &mdash; 花括号初始化，构造 <code>std::pair&lt;int,int&gt;</code>。</li>
+    <li><code>inter[key]</code> &mdash; 存在则返回引用；<b>不存在则自动插入</b>，值默认为 <code>int() = 0</code>，返回对新值的引用。</li>
+    <li><code>++</code> &mdash; 把引用指向的值加 1。</li>
+  </ol>
+  <p style="color:var(--muted);font-size:13px">一行完成 &quot;初始化 + 累加&quot;。<span style="color:var(--warn)">注意副作用：</span><code>operator[]</code> 会插入默认值，如果只想查询用 <code>.find()</code>。</p>
+
+  <h3>复杂度</h3>
+  <table>
+    <thead><tr><th>阶段</th><th>时间</th><th>空间</th></tr></thead>
+    <tbody>
+      <tr><td>建倒排索引</td><td>O(N&middot;K)</td><td>O(N&middot;K)</td></tr>
+      <tr><td>交集计数</td><td><b>O(&Sigma; f(w)&sup2;)</b></td><td>O(P)</td></tr>
+      <tr><td>输出</td><td>O(P)</td><td>O(P)</td></tr>
+    </tbody>
+  </table>
+  <p style="color:var(--muted);font-size:13px">K = 平均文档大小，f(w) = 词 w 的文档频次，P = sim &gt; 0 的对数。</p>
+</section>
+
+<section id="sparse-optim">
+  <h2><span class="num">1.4</span>优化 &amp; 大规模 MinHash</h2>
+
+  <h3>换成 unordered_map + 自定义哈希 (常数快 3-5&times;)</h3>
+<pre><span class="kw">struct</span> PairHash {
+    <span class="kw">size_t</span> <span class="kw">operator</span>()(<span class="kw">long long</span> k) <span class="kw">const noexcept</span> {
+        k ^= k &gt;&gt; <span class="num-lit">33</span>; k *= <span class="num-lit">0xff51afd7ed558ccdULL</span>;
+        k ^= k &gt;&gt; <span class="num-lit">33</span>; k *= <span class="num-lit">0xc4ceb9fe1a85ec53ULL</span>;
+        k ^= k &gt;&gt; <span class="num-lit">33</span>; <span class="kw">return</span> (<span class="kw">size_t</span>)k;
+    }
+};
+std::unordered_map&lt;<span class="kw">long long</span>, <span class="kw">int</span>, PairHash&gt; inter;
+
+<span class="kw">for</span> (<span class="kw">const auto</span>&amp; [term, v] : inv) {
+    <span class="kw">for</span> (<span class="kw">size_t</span> a = <span class="num-lit">0</span>; a + <span class="num-lit">1</span> &lt; v.size(); ++a) {
+        <span class="kw">long long</span> lo = (<span class="kw">long long</span>)v[a] &lt;&lt; <span class="num-lit">32</span>;    <span class="cmt">// 外提</span>
+        <span class="kw">for</span> (<span class="kw">size_t</span> b = a + <span class="num-lit">1</span>; b &lt; v.size(); ++b)
+            ++inter[lo | (<span class="kw">unsigned</span>)v[b]];
+    }
+}</pre>
+
+  <div class="warn">
+    <b>停用词陷阱：</b> 如果某个词几乎出现在所有文档里（&quot;停用词&quot;），f(w) &approx; N，那 f(w)&sup2; &approx; N&sup2; 直接退化。
+    预处理时按 df 过滤最常见的 5% 词是标准做法。
+  </div>
+
+  <h3>大规模: MinHash + LSH</h3>
+  <p>当元素域巨大（十亿级）或 &Sigma; f(w)&sup2; 也爆时，切换到近似算法：</p>
+
+  <h4>MinHash</h4>
+  <ul class="compact">
+    <li>用 k 个哈希函数，每个函数对文档所有元素取哈希，取最小值。</li>
+    <li>每个文档得到长度为 k 的 &quot;签名&quot;。</li>
+    <li>两文档签名中<b>同位置相等的比例</b>是 Jaccard 的无偏估计。</li>
+    <li>空间：O(N&middot;k)；k = 128 通常已足够准。</li>
+  </ul>
+
+  <h4>LSH (Locality-Sensitive Hashing)</h4>
+  <ul class="compact">
+    <li>把 k 长签名切成 b 段，每段 r 行。</li>
+    <li>只要有一段完全相等，就当作 &quot;候选对&quot;。</li>
+    <li><b>概率放大</b>：调 (b, r) 让 sim &gt; &tau; 的对几乎必被抓到，sim &lt;&lt; &tau; 的对几乎不被抓到。</li>
+    <li>最后只对候选对精确计算。</li>
+  </ul>
+
+  <p style="color:var(--muted);font-size:13px">开源实现: Python <code>datasketch</code>；C++ 有若干独立库。Google/Bing 网页去重用的就是这一套。</p>
+</section>
+
+<!-- ================================================================== -->
+<!--                        PART 2 - RED-BLACK TREE                       -->
+<!-- ================================================================== -->
+
+<section id="rbt-what">
+  <h2><span class="num">2.1</span>红黑树 &mdash; 5 条不变量</h2>
+  <div class="desc">Red-Black Tree 是一种自平衡二叉搜索树。<code>std::map</code> / <code>std::set</code> / Java <code>TreeMap</code> / Linux CFS 调度器 / epoll / nginx timer 都用它。</div>
+
+  <h3>是什么</h3>
+  <p>一棵 BST，每个节点额外带一个颜色：<b style="color:var(--red-node)">红</b> 或 <b style="color:#cbd5e1">黑</b>。通过 5 条不变量保证 <b>树高 &le; 2&middot;log&#x2082;(N+1)</b>，所有操作最坏 O(log N)。</p>
+
+  <h3>5 条 property</h3>
+  <ol class="tight">
+    <li>每个节点非红即黑。</li>
+    <li><b>根节点是黑</b>。</li>
+    <li>每个叶子（NIL 空节点）是黑。</li>
+    <li><b>红色节点的两个孩子都是黑</b>（no red-red）。</li>
+    <li><b>从任一节点到其所有后代 NIL 的路径上，黑色节点数量相同</b>（黑高一致）。</li>
+  </ol>
+
+  <div class="note">
+    这五条一起保证：<b>从根到叶最长路径 &le; 最短路径的 2 倍</b>。因为最短路径全黑，最长路径必是红黑交替，长度顶多 2 倍。
+  </div>
+
+  <h3>一个合法红黑树的例子</h3>
+  <svg class="tree-svg" viewBox="0 0 560 260" width="560" height="260">
+    <line class="edge" x1="280" y1="40" x2="160" y2="110"/>
+    <line class="edge" x1="280" y1="40" x2="400" y2="110"/>
+    <line class="edge" x1="160" y1="110" x2="80" y2="180"/>
+    <line class="edge" x1="160" y1="110" x2="240" y2="180"/>
+    <line class="edge" x1="400" y1="110" x2="340" y2="180"/>
+    <line class="edge" x1="400" y1="110" x2="470" y2="180"/>
+    <line class="edge" x1="470" y1="180" x2="520" y2="230"/>
+
+    <circle class="bn" cx="280" cy="40" r="22"/><text x="280" y="40">13</text>
+    <circle class="bn" cx="160" cy="110" r="22"/><text x="160" y="110">8</text>
+    <circle class="rn" cx="400" cy="110" r="22"/><text x="400" y="110">17</text>
+    <circle class="rn" cx="80"  cy="180" r="22"/><text x="80" y="180">1</text>
+    <circle class="rn" cx="240" cy="180" r="22"/><text x="240" y="180">11</text>
+    <circle class="bn" cx="340" cy="180" r="22"/><text x="340" y="180">15</text>
+    <circle class="bn" cx="470" cy="180" r="22"/><text x="470" y="180">25</text>
+    <circle class="rn" cx="520" cy="230" r="18"/><text x="520" y="230">27</text>
+  </svg>
+  <p style="text-align:center;color:var(--muted);font-size:12px">
+    每条根 &rarr; NIL 路径上恰好 2 个黑节点（含根）；无红-红父子；根黑。
+  </p>
+</section>
+
+<section id="rbt-why">
+  <h2><span class="num">2.2</span>为什么 std::map 用红黑树</h2>
+
+  <h3>vs 其他自平衡树</h3>
+  <table>
+    <thead><tr><th>树</th><th>平衡严格性</th><th>查找</th><th>插入/删除</th><th>旋转次数</th><th>额外空间</th></tr></thead>
+    <tbody>
+      <tr><td>BST</td><td>无</td><td>O(N) 最坏</td><td>O(N) 最坏</td><td>0</td><td>少</td></tr>
+      <tr><td>AVL</td><td>严格（高差 &le;1）</td><td>快（更矮）</td><td>稍慢</td><td>多</td><td>+1 int/node</td></tr>
+      <tr><td><b>红黑</b></td><td>宽松（&le;2 倍）</td><td>略慢</td><td><b>快</b></td><td><b>少</b></td><td>+1 bit/node</td></tr>
+      <tr><td>Splay</td><td>摊还</td><td>O(log N) 摊还</td><td>O(log N) 摊还</td><td>每次都调</td><td>少</td></tr>
+      <tr><td>B-Tree</td><td>严格</td><td>O(log N)</td><td>O(log N)</td><td>&mdash;</td><td>高扇出</td></tr>
+    </tbody>
+  </table>
+
+  <h3>std::map 用到的性质</h3>
+  <ul class="compact">
+    <li><b>有序遍历</b>：<code>begin()</code> &rarr; <code>end()</code> 是升序。前面 sparse-similarity 里 <code>inter</code> 输出天然按 (i, j) 排序的原因。</li>
+    <li><b>lower_bound / upper_bound</b>：O(log N)，哈希做不到。</li>
+    <li><b>迭代器稳定</b>：插入/删除不 invalidate 其它迭代器（<code>unordered_map</code> rehash 会）。</li>
+    <li><b>前驱 / 后继</b>：<code>std::prev(it)</code> / <code>std::next(it)</code> 是 O(1) 摊还。</li>
+  </ul>
+
+  <div class="warn">
+    <b>常数大的代价：</b> 每个节点至少 3 个指针 + 键值对 + 1 bit 颜色，对齐后 40-56 字节。O(log N) 次跳指针，<b>cache locality 差</b>。
+    这就是 <code>std::unordered_map</code>（哈希）通常快 3-5&times; 的原因。
+  </div>
+</section>
+
+<section id="rbt-rotate">
+  <h2><span class="num">2.3</span>旋转 + 重染色</h2>
+  <div class="desc">修复不变量只需要两种操作：<b>旋转</b>（改结构）和 <b>重染色</b>（只改颜色）。</div>
+
+  <h3>左旋（以 x 为轴，x 的右子 y 上位）</h3>
+<pre>    x                       y
+   / \                     / \
+  a   y      -左旋-&gt;      x   c
+     / \                 / \
+    b   c               a   b</pre>
+
+<pre><span class="kw">void</span> <span class="fn">rotateLeft</span>(Node* x) {
+    Node* y = x-&gt;right;
+    x-&gt;right = y-&gt;left;
+    <span class="kw">if</span> (y-&gt;left) y-&gt;left-&gt;parent = x;
+    y-&gt;parent = x-&gt;parent;
+    <span class="kw">if</span> (!x-&gt;parent) root = y;
+    <span class="kw">else if</span> (x == x-&gt;parent-&gt;left) x-&gt;parent-&gt;left = y;
+    <span class="kw">else</span>                          x-&gt;parent-&gt;right = y;
+    y-&gt;left = x;
+    x-&gt;parent = y;
+}</pre>
+
+  <p style="color:var(--muted);font-size:13px">右旋完全对称。旋转是 <b>O(1)</b>，只改动几个指针。</p>
+</section>
+
+<section id="rbt-insert">
+  <h2><span class="num">2.4</span>插入的 4 个 case</h2>
+  <div class="desc">新节点按 BST 规则插入，涂 <b style="color:var(--red-node)">红色</b>（保证不破坏黑高）。若父节点也是红，进入修复。</div>
+
+  <p>记号：<code>z</code> = 新节点，<code>p</code> = z 的父，<code>g</code> = z 的祖父，<code>u</code> = z 的叔（p 的兄弟）。</p>
+
+  <table>
+    <thead><tr><th>Case</th><th>条件</th><th>动作</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>p 是黑</td><td>完成，什么都不做。</td></tr>
+      <tr><td>2</td><td>p 红, u 红</td><td>p 和 u 涂黑；g 涂红；把 g 当作新的 z 递归修复（红色向上冒泡）。</td></tr>
+      <tr><td>3</td><td>p 红, u 黑, z 是 &quot;内侧&quot; 孩子（LR / RL）</td><td>对 p 做旋转，转成 Case 4。</td></tr>
+      <tr><td>4</td><td>p 红, u 黑, z 是 &quot;外侧&quot; 孩子（LL / RR）</td><td>p 涂黑, g 涂红, 对 g 反向旋转。<b>完成</b>。</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Case 4 图示（LL）</h3>
+  <svg class="tree-svg" viewBox="0 0 560 220" width="560" height="220">
+    <text x="130" y="20" style="font-size:12px;fill:var(--muted)">修复前</text>
+    <text x="440" y="20" style="font-size:12px;fill:var(--muted)">修复后</text>
+
+    <line class="edge" x1="150" y1="60" x2="100" y2="120"/>
+    <line class="edge" x1="150" y1="60" x2="210" y2="120"/>
+    <line class="edge" x1="100" y1="120" x2="60" y2="180"/>
+    <circle class="bn" cx="150" cy="60" r="20"/><text x="150" y="60">G</text>
+    <circle class="rn" cx="100" cy="120" r="20"/><text x="100" y="120">P</text>
+    <circle class="bn" cx="210" cy="120" r="20"/><text x="210" y="120">U</text>
+    <circle class="rn" cx="60" cy="180" r="20"/><text x="60" y="180">Z</text>
+
+    <text x="290" y="120" style="font-size:20px;fill:var(--accent)">&#x2192;</text>
+
+    <line class="edge" x1="420" y1="60" x2="370" y2="120"/>
+    <line class="edge" x1="420" y1="60" x2="470" y2="120"/>
+    <circle class="bn" cx="420" cy="60" r="20"/><text x="420" y="60">P</text>
+    <circle class="rn" cx="370" cy="120" r="20"/><text x="370" y="120">Z</text>
+    <circle class="rn" cx="470" cy="120" r="20"/><text x="470" y="120">G</text>
+    <line class="edge" x1="470" y1="120" x2="520" y2="180"/>
+    <circle class="bn" cx="520" cy="180" r="20"/><text x="520" y="180">U</text>
+  </svg>
+  <p style="text-align:center;color:var(--muted);font-size:12px">P 涂黑, G 涂红, 对 G 右旋。</p>
+
+  <h3>fixup 骨架</h3>
+<pre><span class="kw">void</span> <span class="fn">insertFixup</span>(Node* z) {
+    <span class="kw">while</span> (z-&gt;parent &amp;&amp; z-&gt;parent-&gt;color == RED) {
+        Node* g = z-&gt;parent-&gt;parent;
+        <span class="kw">if</span> (z-&gt;parent == g-&gt;left) {
+            Node* u = g-&gt;right;
+            <span class="kw">if</span> (u &amp;&amp; u-&gt;color == RED) {           <span class="cmt">// Case 2</span>
+                z-&gt;parent-&gt;color = BLACK;
+                u-&gt;color = BLACK;
+                g-&gt;color = RED;
+                z = g;                             <span class="cmt">// 冒泡向上</span>
+            } <span class="kw">else</span> {
+                <span class="kw">if</span> (z == z-&gt;parent-&gt;right) {      <span class="cmt">// Case 3</span>
+                    z = z-&gt;parent;
+                    <span class="fn">rotateLeft</span>(z);
+                }
+                z-&gt;parent-&gt;color = BLACK;         <span class="cmt">// Case 4</span>
+                g-&gt;color = RED;
+                <span class="fn">rotateRight</span>(g);
+            }
+        } <span class="kw">else</span> {
+            <span class="cmt">// 对称：left/right 互换</span>
+        }
+    }
+    root-&gt;color = BLACK;                           <span class="cmt">// 保证 property 2</span>
+}</pre>
+
+  <p style="color:var(--muted);font-size:13px">最多向上冒泡 O(log N) 次，最多 <b>2 次旋转</b>。</p>
+</section>
+
+<section id="rbt-delete">
+  <h2><span class="num">2.5</span>删除概览</h2>
+
+  <p>删除本身用标准 BST 后继替换。真正麻烦的是<b>删了一个黑节点后某条路径少一个黑</b>，产生 &quot;doubly-black&quot; 节点。修复看兄弟节点 s 和它的孩子，同样分 4 个 case（对称一共 8 个），用旋转 + 重染色把 &quot;黑亏损&quot; 消化掉或向上传。</p>
+
+  <ul class="compact">
+    <li>被删节点是红 &rarr; 直接删，什么都不用做。</li>
+    <li>被删节点是黑，替代者是红 &rarr; 把替代者涂黑。</li>
+    <li>被删节点是黑，替代者也是黑 &rarr; 进入 fixup，4 个 case。</li>
+  </ul>
+
+  <p>最坏 <b>O(log N)</b> 时间，旋转不超过 <b>3 次</b>。</p>
+</section>
+
+<section id="rbt-compare">
+  <h2><span class="num">2.6</span>与其它结构的对比</h2>
+
+  <table>
+    <thead><tr><th>操作</th><th>std::map (红黑)</th><th>std::unordered_map (哈希)</th><th>std::vector + sort</th></tr></thead>
+    <tbody>
+      <tr><td>find</td><td>O(log N)</td><td>O(1) 期望</td><td>O(log N) 二分</td></tr>
+      <tr><td>insert</td><td>O(log N)</td><td>O(1) 均摊</td><td>O(N) 中间插入</td></tr>
+      <tr><td>erase</td><td>O(log N)</td><td>O(1) 期望</td><td>O(N)</td></tr>
+      <tr><td>有序遍历</td><td>O(N) 天然升序</td><td>&#x2717; 无序</td><td>O(N)</td></tr>
+      <tr><td>lower_bound</td><td>O(log N)</td><td>&#x2717;</td><td>O(log N)</td></tr>
+      <tr><td>迭代器稳定性</td><td>&#x2713;</td><td>rehash 失效</td><td>reallocate 失效</td></tr>
+      <tr><td>cache locality</td><td>差</td><td>差</td><td><b>好</b></td></tr>
+    </tbody>
+  </table>
+
+  <h3>何时用/不用</h3>
+  <ul class="compact">
+    <li>需要顺序 + 范围查询 &rarr; <b>std::map</b>（红黑）</li>
+    <li>只需等值查询 &rarr; <b>std::unordered_map</b>（哈希）快 3-5&times;</li>
+    <li>只读大数据 &rarr; <b>排序 vector + std::lower_bound</b>，比 map 快得多</li>
+    <li>需要范围查询 + 稠密数据 &rarr; 分块 / segment tree / 有序 vector</li>
+  </ul>
+
+  <div class="note">
+    <b>一句话记忆红黑树：</b> BST + 1 bit 颜色 + 5 条不变量，通过旋转和重染色保证树高不超过 2&middot;log&#x2082;(N+1)，插入/删除的修复代价是常数级 O(1) 结构改动。
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Tech Notes &middot; sparse similarity + red-black tree &middot; last updated Aug 23, 2026
+</footer>
+
+</body>
+</html>

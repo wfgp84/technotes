@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>lock_guard vs unique_lock — Tech Notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #a78bfa;
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --border: #334155;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+  header {
+    padding: 44px 40px 30px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e40af 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: 0.5px; }
+  header .sub { color: var(--muted); font-size: 14px; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 32px 80px; }
+
+  section {
+    margin: 32px 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 28px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  section h2 {
+    margin: 0 0 6px;
+    color: var(--accent);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section h2 .num {
+    background: var(--accent);
+    color: #0f172a;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  section h3 { color: var(--accent-2); margin-top: 22px; margin-bottom: 8px; font-size: 17px; }
+  section h4 { color: #cbd5e1; margin-top: 16px; margin-bottom: 6px; font-size: 15px; }
+  section .desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  pre {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    border-left: 3px solid var(--accent);
+    margin: 10px 0;
+  }
+  pre.output { border-left-color: var(--ok); color: #d1fae5; }
+  pre.bad { border-left-color: var(--danger); }
+  code {
+    background: var(--code-bg);
+    color: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    word-break: break-word;
+  }
+  .kw { color: #c084fc; }
+  .fn { color: #38bdf8; }
+  .str { color: #86efac; }
+  .cmt { color: #64748b; font-style: italic; }
+  .num-lit { color: #fbbf24; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--panel-2);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { background: var(--code-bg); color: var(--accent-2); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no  { color: var(--danger); font-weight: 700; }
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-right: 4px;
+  }
+  .tag-cpp11 { background: #38bdf8; color: #0f172a; }
+  .tag-cpp17 { background: #a78bfa; color: #1e1b4b; }
+  .tag-cpp20 { background: #fb923c; color: #431407; }
+  .tag-best { background: #34d399; color: #052e1a; }
+
+  .note { background: rgba(56, 189, 248, 0.1); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #cbd5e1; }
+  .warn { background: rgba(251, 191, 36, 0.08); border-left: 3px solid var(--warn); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #fde68a; }
+  .danger-box { background: rgba(248, 113, 113, 0.08); border-left: 3px solid var(--danger); padding: 12px 16px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #fecaca; }
+
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 24px; margin-bottom: 24px; }
+  .toc ol { margin: 8px 0 0; padding-left: 24px; columns: 2; }
+  .toc li { margin: 5px 0; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { padding: 20px 32px; text-align: center; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  ul.compact { margin: 6px 0; padding-left: 22px; }
+  ul.compact li { margin: 4px 0; font-size: 14px; }
+  ol.tight { margin: 8px 0; padding-left: 22px; }
+  ol.tight li { margin: 6px 0; font-size: 14px; }
+
+  /* Decision flow diagram */
+  .flow { background: var(--code-bg); border-radius: 8px; padding: 14px; margin: 12px 0; font-family: "JetBrains Mono", monospace; font-size: 13px; line-height: 1.7; }
+  .flow .q { color: var(--accent); }
+  .flow .a { color: var(--ok); font-weight: 700; }
+  .flow .a-alt { color: var(--warn); font-weight: 700; }
+
+  @media (max-width: 900px) { .toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><code style="font-size:26px;background:transparent;padding:0">std::lock_guard</code> vs <code style="font-size:26px;background:transparent;padding:0">std::unique_lock</code></h1>
+  <div class="sub">
+    Two RAII lock wrappers &mdash; when to use which, plus <code>scoped_lock</code>, pitfalls,
+    and the <code>condition_variable</code> connection.
+    <br>C++11 / C++17 &middot; last updated Aug 24, 2026
+  </div>
+</header>
+
+<main>
+
+<div class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#tldr">1. TL;DR</a></li>
+    <li><a href="#lock-guard"><code>2. std::lock_guard</code></a></li>
+    <li><a href="#unique-lock"><code>3. std::unique_lock</code></a></li>
+    <li><a href="#scoped-lock"><code>4. std::scoped_lock</code> (C++17)</a></li>
+    <li><a href="#cv">5. Why <code>condition_variable</code> needs <code>unique_lock</code></a></li>
+    <li><a href="#decision">6. Decision flow</a></li>
+    <li><a href="#perf">7. Performance</a></li>
+    <li><a href="#pitfalls">8. Common pitfalls</a></li>
+    <li><a href="#example">9. Full runnable example</a></li>
+    <li><a href="#related">10. Related primitives</a></li>
+  </ol>
+</div>
+
+<!-- ==================== 1. TL;DR ==================== -->
+<section id="tldr">
+  <h2><span class="num">1</span>TL;DR</h2>
+  <div class="desc">Both are RAII wrappers around a mutex &mdash; lock in constructor, unlock in destructor.
+  Difference is <b>flexibility vs overhead</b>.</div>
+
+  <table>
+    <thead><tr><th>Feature</th><th><code>lock_guard</code></th><th><code>unique_lock</code></th></tr></thead>
+    <tbody>
+      <tr><td>Header / since</td><td><code>&lt;mutex&gt;</code> &middot; <span class="tag tag-cpp11">C++11</span></td><td><code>&lt;mutex&gt;</code> &middot; <span class="tag tag-cpp11">C++11</span></td></tr>
+      <tr><td>RAII (auto-unlock in dtor)</td><td class="yes">&#x2713;</td><td class="yes">&#x2713;</td></tr>
+      <tr><td>Movable</td><td class="no">&#x2717;</td><td class="yes">&#x2713;</td></tr>
+      <tr><td>Copyable</td><td class="no">&#x2717;</td><td class="no">&#x2717;</td></tr>
+      <tr><td>Unlock / relock during scope</td><td class="no">&#x2717;</td><td class="yes">&#x2713; (<code>.unlock()</code> / <code>.lock()</code>)</td></tr>
+      <tr><td>Deferred lock</td><td class="no">&#x2717;</td><td class="yes">&#x2713; (<code>std::defer_lock</code>)</td></tr>
+      <tr><td>Try-lock / timed-lock</td><td class="no">&#x2717;</td><td class="yes">&#x2713; (<code>std::try_to_lock</code>, timed ctors)</td></tr>
+      <tr><td>Adopt already-locked mutex</td><td class="yes">&#x2713;</td><td class="yes">&#x2713;</td></tr>
+      <tr><td>Works with <code>condition_variable::wait</code></td><td class="no">&#x2717;</td><td class="yes">&#x2713; (<b>required</b>)</td></tr>
+      <tr><td>Runtime overhead</td><td>1 ptr</td><td>1 ptr + 1 bool ownership state</td></tr>
+      <tr><td>Best for</td><td>Simple scoped locking</td><td>Anything more complicated</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Rule of thumb:</b> use <code>lock_guard</code> (or <code>scoped_lock</code> in C++17+) by default;
+    reach for <code>unique_lock</code> only when you need one of its extras &mdash;
+    early unlock, condition variables, moving the lock out of scope, or timed / try locking.
+  </div>
+</section>
+
+<!-- ==================== 2. LOCK GUARD ==================== -->
+<section id="lock-guard">
+  <h2><span class="num">2</span><code>std::lock_guard</code> &mdash; the minimalist</h2>
+
+<pre><span class="kw">#include</span> <span class="str">&lt;mutex&gt;</span>
+
+std::mutex m;
+<span class="kw">int</span> counter = <span class="num-lit">0</span>;
+
+<span class="kw">void</span> <span class="fn">increment</span>() {
+    std::lock_guard&lt;std::mutex&gt; lk(m);   <span class="cmt">// lock here</span>
+    ++counter;
+}                                        <span class="cmt">// unlock here (dtor)</span></pre>
+
+  <ul class="compact">
+    <li>Locks on construction, unlocks on destruction. <b>Period.</b></li>
+    <li>No <code>.unlock()</code> / <code>.lock()</code> API &mdash; can't release early.</li>
+    <li>Not movable &mdash; can't return it, can't store in a container.</li>
+    <li><b>Zero runtime overhead</b> beyond calling <code>lock()</code>/<code>unlock()</code> on the mutex.</li>
+  </ul>
+
+  <h3><span class="tag tag-cpp17">C++17</span> CTAD lets you drop the template argument</h3>
+<pre>std::lock_guard lk(m);       <span class="cmt">// same as std::lock_guard&lt;std::mutex&gt; lk(m);</span></pre>
+</section>
+
+<!-- ==================== 3. UNIQUE LOCK ==================== -->
+<section id="unique-lock">
+  <h2><span class="num">3</span><code>std::unique_lock</code> &mdash; the flexible one</h2>
+
+<pre>std::mutex m;
+
+<span class="kw">void</span> <span class="fn">doWork</span>() {
+    std::unique_lock&lt;std::mutex&gt; lk(m);   <span class="cmt">// lock here</span>
+    <span class="cmt">// ... critical section ...</span>
+
+    lk.<span class="fn">unlock</span>();                       <span class="cmt">// release early</span>
+    <span class="fn">doExpensiveWorkNotNeedingLock</span>();
+
+    lk.<span class="fn">lock</span>();                         <span class="cmt">// reacquire</span>
+    <span class="cmt">// ... more critical section ...</span>
+}                                        <span class="cmt">// dtor: unlock if still owned</span></pre>
+
+  <h3>Extras that <code>lock_guard</code> doesn't have</h3>
+
+  <h4>3.1 &nbsp; Deferred lock (deadlock-safe multi-lock)</h4>
+<pre>std::mutex m1, m2;
+std::unique_lock&lt;std::mutex&gt; lk1(m1, std::defer_lock);   <span class="cmt">// don't lock yet</span>
+std::unique_lock&lt;std::mutex&gt; lk2(m2, std::defer_lock);
+std::<span class="fn">lock</span>(lk1, lk2);            <span class="cmt">// atomically locks both, deadlock-safe</span></pre>
+
+  <h4>3.2 &nbsp; Try-lock / timed lock</h4>
+<pre>std::unique_lock&lt;std::mutex&gt; lk(m, std::try_to_lock);
+<span class="kw">if</span> (lk.<span class="fn">owns_lock</span>()) {
+    <span class="cmt">// got it</span>
+} <span class="kw">else</span> {
+    <span class="cmt">// busy &mdash; do something else</span>
+}
+
+<span class="cmt">// Timed mutex variant:</span>
+std::timed_mutex tm;
+std::unique_lock&lt;std::timed_mutex&gt; lk(tm, std::chrono::milliseconds(<span class="num-lit">50</span>));
+<span class="kw">if</span> (lk.<span class="fn">owns_lock</span>()) { <span class="cmt">/* got it within 50 ms */</span> }</pre>
+
+  <h4>3.3 &nbsp; Adopt an already-locked mutex</h4>
+<pre>m.<span class="fn">lock</span>();
+std::unique_lock&lt;std::mutex&gt; lk(m, std::adopt_lock);   <span class="cmt">// take ownership, don't lock again</span></pre>
+
+  <h4>3.4 &nbsp; Movable &rarr; can be returned from a function</h4>
+<pre>std::unique_lock&lt;std::mutex&gt; <span class="fn">getLock</span>() {
+    <span class="kw">return</span> std::unique_lock&lt;std::mutex&gt;(m);
+}
+<span class="kw">auto</span> lk = <span class="fn">getLock</span>();   <span class="cmt">// ownership moves out; lock_guard couldn't do this</span></pre>
+</section>
+
+<!-- ==================== 4. SCOPED LOCK ==================== -->
+<section id="scoped-lock">
+  <h2><span class="num">4</span><code>std::scoped_lock</code> <span class="tag tag-cpp17">C++17</span> &mdash; usually the best default</h2>
+
+<pre>std::mutex m1, m2;
+std::scoped_lock lk(m1, m2);      <span class="cmt">// atomically locks BOTH, deadlock-safe</span></pre>
+
+  <ul class="compact">
+    <li>Takes any number of mutexes; locks them atomically via <code>std::lock</code>.</li>
+    <li>Same "no unlock early / not movable" restrictions as <code>lock_guard</code>.</li>
+    <li><b>Preferred replacement for <code>lock_guard</code></b> in C++17+ &mdash; it's a strict superset.</li>
+    <li>Also solves the classic 2-mutex deadlock trap in one line.</li>
+  </ul>
+
+  <div class="note">
+    <b>Why not always use <code>scoped_lock</code>?</b>
+    You still need <code>unique_lock</code> for condition variables, deferred / timed / try locks, or when the lock has to be moved.
+  </div>
+</section>
+
+<!-- ==================== 5. CV connection ==================== -->
+<section id="cv">
+  <h2><span class="num">5</span>Why <code>condition_variable</code> needs <code>unique_lock</code></h2>
+  <div class="desc">This is often the deciding factor for picking <code>unique_lock</code>.</div>
+
+<pre><span class="kw">#include</span> <span class="str">&lt;condition_variable&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;mutex&gt;</span>
+
+std::mutex m;
+std::condition_variable cv;
+<span class="kw">bool</span> ready = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">consumer</span>() {
+    std::unique_lock&lt;std::mutex&gt; lk(m);       <span class="cmt">// MUST be unique_lock</span>
+    cv.<span class="fn">wait</span>(lk, []{ <span class="kw">return</span> ready; });    <span class="cmt">// wait() calls lk.unlock() then lk.lock()</span>
+    <span class="cmt">// ready is now true, mutex re-acquired</span>
+}</pre>
+
+  <p><code>condition_variable::wait</code> needs to <b>unlock the mutex while waiting</b> and <b>relock on wake</b> &mdash;
+     <code>lock_guard</code> doesn't expose those, so you must use <code>unique_lock</code>.</p>
+
+  <div class="warn">
+    <b>Note:</b> <code>std::condition_variable_any::wait</code> works with any lock type, but plain
+    <code>std::condition_variable</code> is faster and takes only <code>unique_lock&lt;mutex&gt;</code>.
+  </div>
+</section>
+
+<!-- ==================== 6. DECISION FLOW ==================== -->
+<section id="decision">
+  <h2><span class="num">6</span>Decision flow</h2>
+
+  <div class="flow">
+<span class="q">Need to lock N &gt; 1 mutexes together?</span>          &rarr;  <span class="a">std::scoped_lock</span> <span class="tag tag-cpp17">C++17</span>
+<span class="q">Need condition_variable::wait?</span>                &rarr;  <span class="a">std::unique_lock</span>
+<span class="q">Need to unlock/relock inside the scope?</span>       &rarr;  <span class="a">std::unique_lock</span>
+<span class="q">Need try_lock / timed_lock via RAII?</span>          &rarr;  <span class="a">std::unique_lock</span>
+<span class="q">Need to move / return the lock?</span>               &rarr;  <span class="a">std::unique_lock</span>
+<span class="q">Otherwise (95% of cases)</span>                      &rarr;  <span class="a-alt">std::lock_guard</span>  (or <span class="a-alt">std::scoped_lock</span> in C++17)
+  </div>
+</section>
+
+<!-- ==================== 7. PERFORMANCE ==================== -->
+<section id="perf">
+  <h2><span class="num">7</span>Performance</h2>
+
+  <p>Both wrap the same mutex operations, so the <b>mutex itself dominates the cost</b>.
+     <code>unique_lock</code> adds ~1 extra <code>bool</code> for the "owns lock" state and a couple of branches
+     in the destructor to check ownership &mdash; utterly negligible in almost all real code.</p>
+
+  <p>If you're on a truly critical hot path, <code>lock_guard</code>/<code>scoped_lock</code> do
+     slightly less work in the destructor (they always unlock, no state to check), but you
+     won't measure it unless you're inside a tight microbenchmark.</p>
+
+  <table>
+    <thead><tr><th>Wrapper</th><th>sizeof (typical, 64-bit)</th><th>dtor branches</th></tr></thead>
+    <tbody>
+      <tr><td><code>lock_guard&lt;mutex&gt;</code></td><td>8 B (1 ptr)</td><td>always unlock</td></tr>
+      <tr><td><code>scoped_lock&lt;mutex&gt;</code></td><td>8 B (per mutex)</td><td>always unlock</td></tr>
+      <tr><td><code>unique_lock&lt;mutex&gt;</code></td><td>16 B (1 ptr + owns bool + padding)</td><td>check <code>owns_lock()</code>, then unlock</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== 8. PITFALLS ==================== -->
+<section id="pitfalls">
+  <h2><span class="num">8</span>Common pitfalls</h2>
+
+  <h3>8.1 &nbsp; Unnamed lock &mdash; unlocks immediately!</h3>
+<pre class="bad">std::lock_guard&lt;std::mutex&gt;(m);         <span class="cmt">// TEMPORARY! unlocks at end of expression</span>
+std::lock_guard&lt;std::mutex&gt; lk(m);      <span class="cmt">// &#x2713; named &mdash; unlocks at end of scope</span></pre>
+
+  <div class="danger-box">
+    This is the #1 threading bug in code reviews. Compilers with <code>-Wall</code> warn about it
+    (<code>-Wunused-value</code>), but not always. Always name the variable.
+  </div>
+
+  <h3>8.2 &nbsp; Locking the same mutex twice on one thread &mdash; deadlock</h3>
+<pre class="bad">std::mutex m;
+<span class="kw">void</span> <span class="fn">outer</span>() {
+    std::lock_guard&lt;std::mutex&gt; lk(m);
+    <span class="fn">inner</span>();                         <span class="cmt">// inner() also locks m &rarr; DEADLOCK</span>
+}</pre>
+  <p>Use <code>std::recursive_mutex</code> if you really need re-entrancy (rarely a good idea &mdash;
+     usually a sign of design confusion).</p>
+
+  <h3>8.3 &nbsp; Deadlock from lock order</h3>
+<pre class="bad"><span class="cmt">// Thread A</span>
+std::lock_guard lk1(m1);
+std::lock_guard lk2(m2);          <span class="cmt">// order: m1, m2</span>
+
+<span class="cmt">// Thread B</span>
+std::lock_guard lk1(m2);
+std::lock_guard lk2(m1);          <span class="cmt">// order: m2, m1 &rarr; DEADLOCK when interleaved</span></pre>
+  <p>Fix: use <code>std::scoped_lock(m1, m2)</code> or <code>std::lock(lk1, lk2)</code> with deferred locks.
+     Both lock all mutexes atomically, in a deadlock-safe order.</p>
+
+  <h3>8.4 &nbsp; Using <code>lock_guard</code> with <code>condition_variable</code></h3>
+<pre class="bad">std::lock_guard&lt;std::mutex&gt; lk(m);
+cv.<span class="fn">wait</span>(lk, []{ <span class="kw">return</span> ready; });   <span class="cmt">// COMPILE ERROR: needs unique_lock</span></pre>
+
+  <h3>8.5 &nbsp; Calling <code>.unlock()</code> on a <code>unique_lock</code> you don't own</h3>
+<pre class="bad">std::unique_lock&lt;std::mutex&gt; lk(m, std::defer_lock);
+lk.<span class="fn">unlock</span>();                     <span class="cmt">// throws std::system_error</span></pre>
+  <p>Use <code>lk.owns_lock()</code> to check ownership first, or design so it's obvious.</p>
+
+  <h3>8.6 &nbsp; Holding a lock across I/O or long work</h3>
+  <p>Lock only the smallest necessary region. If you need to release during I/O:</p>
+<pre>std::unique_lock&lt;std::mutex&gt; lk(m);
+<span class="kw">auto</span> snapshot = shared_data;
+lk.<span class="fn">unlock</span>();                     <span class="cmt">// release before I/O</span>
+<span class="fn">writeToDisk</span>(snapshot);
+<span class="cmt">// don't relock unless you need to update shared state</span></pre>
+</section>
+
+<!-- ==================== 9. FULL EXAMPLE ==================== -->
+<section id="example">
+  <h2><span class="num">9</span>Full runnable example &mdash; producer / consumer</h2>
+  <div class="desc">Shows <code>lock_guard</code> for short critical sections, <code>unique_lock</code> for
+  <code>cv.wait</code> plus unlock-during-I/O.</div>
+
+<pre><span class="kw">#include</span> <span class="str">&lt;chrono&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;condition_variable&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;mutex&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;queue&gt;</span>
+<span class="kw">#include</span> <span class="str">&lt;thread&gt;</span>
+
+std::mutex m;
+std::condition_variable cv;
+std::queue&lt;<span class="kw">int</span>&gt; q;
+<span class="kw">bool</span> done = <span class="kw">false</span>;
+
+<span class="kw">void</span> <span class="fn">producer</span>() {
+    <span class="kw">for</span> (<span class="kw">int</span> i = <span class="num-lit">0</span>; i &lt; <span class="num-lit">5</span>; ++i) {
+        {
+            std::lock_guard&lt;std::mutex&gt; lk(m);           <span class="cmt">// simple scoped lock</span>
+            q.<span class="fn">push</span>(i);
+            std::cout &lt;&lt; <span class="str">"pushed "</span> &lt;&lt; i &lt;&lt; <span class="str">"\n"</span>;
+        }
+        cv.<span class="fn">notify_one</span>();
+        std::this_thread::<span class="fn">sleep_for</span>(std::chrono::milliseconds(<span class="num-lit">100</span>));
+    }
+    {
+        std::lock_guard&lt;std::mutex&gt; lk(m);
+        done = <span class="kw">true</span>;
+    }
+    cv.<span class="fn">notify_all</span>();
+}
+
+<span class="kw">void</span> <span class="fn">consumer</span>() {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+        std::unique_lock&lt;std::mutex&gt; lk(m);              <span class="cmt">// needed for cv.wait</span>
+        cv.<span class="fn">wait</span>(lk, []{ <span class="kw">return</span> !q.<span class="fn">empty</span>() || done; });
+        <span class="kw">while</span> (!q.<span class="fn">empty</span>()) {
+            <span class="kw">int</span> v = q.<span class="fn">front</span>(); q.<span class="fn">pop</span>();
+            lk.<span class="fn">unlock</span>();                                <span class="cmt">// release before I/O</span>
+            std::cout &lt;&lt; <span class="str">"  consumed "</span> &lt;&lt; v &lt;&lt; <span class="str">"\n"</span>;
+            lk.<span class="fn">lock</span>();                                  <span class="cmt">// reacquire</span>
+        }
+        <span class="kw">if</span> (done) <span class="kw">break</span>;
+    }
+}
+
+<span class="kw">int</span> <span class="fn">main</span>() {
+    std::thread p(producer), c(consumer);
+    p.<span class="fn">join</span>(); c.<span class="fn">join</span>();
+}</pre>
+
+<pre class="output">pushed 0
+  consumed 0
+pushed 1
+  consumed 1
+pushed 2
+  consumed 2
+pushed 3
+  consumed 3
+pushed 4
+  consumed 4</pre>
+</section>
+
+<!-- ==================== 10. RELATED ==================== -->
+<section id="related">
+  <h2><span class="num">10</span>Related primitives</h2>
+
+  <table>
+    <thead><tr><th>Since</th><th>Type</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-cpp11">C++11</span></td>
+        <td><code>std::mutex</code></td>
+        <td>Basic mutual exclusion.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp11">C++11</span></td>
+        <td><code>std::recursive_mutex</code></td>
+        <td>Same thread can lock multiple times.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp11">C++11</span></td>
+        <td><code>std::timed_mutex</code>, <code>recursive_timed_mutex</code></td>
+        <td>Supports <code>try_lock_for</code> / <code>try_lock_until</code>.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp14">C++14</span></td>
+        <td><code>std::shared_timed_mutex</code></td>
+        <td>Reader/writer lock (timed). Multiple readers, one writer.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp17">C++17</span></td>
+        <td><code>std::shared_mutex</code></td>
+        <td>Reader/writer lock (untimed, faster).</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp17">C++17</span></td>
+        <td><code>std::shared_lock</code></td>
+        <td>RAII wrapper for shared (reader) locking on <code>shared_mutex</code>.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp17">C++17</span></td>
+        <td><code>std::scoped_lock</code></td>
+        <td>Lock 0..N mutexes atomically. Best default.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp20">C++20</span></td>
+        <td><code>std::latch</code></td>
+        <td>Single-use counter; threads wait until it reaches 0.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp20">C++20</span></td>
+        <td><code>std::barrier</code></td>
+        <td>Reusable multi-phase synchronization.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp20">C++20</span></td>
+        <td><code>std::counting_semaphore</code></td>
+        <td>Classic semaphore with N permits.</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-cpp20">C++20</span></td>
+        <td><code>std::binary_semaphore</code></td>
+        <td>Binary semaphore (0/1 permits).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Reader/writer example:</b>
+    <pre>std::shared_mutex sm;
+
+<span class="cmt">// many readers, no writers:</span>
+std::shared_lock lk(sm);                <span class="cmt">// C++17</span>
+
+<span class="cmt">// exclusive writer:</span>
+std::unique_lock lk(sm);                <span class="cmt">// C++11</span></pre>
+    <code>shared_lock</code> takes shared ownership; <code>unique_lock</code> takes exclusive ownership on the same mutex.
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Tech Notes &middot; std::lock_guard vs std::unique_lock &middot; last updated Aug 24, 2026
+</footer>
+
+</body>
+</html>
