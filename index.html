@@ -158,6 +158,30 @@
     </a>
   </div>
 
+  <h2>Systems &amp; OS</h2>
+  <div class="cards">
+    <a class="card" href="process-vs-thread.html">
+      <h3>Process vs Thread</h3>
+      <p>Address spaces, page tables, context-switch cost (three cases), MMU spatial vs temporal, IPC latencies, and why "processes use more resources" &mdash; concrete numbers included.</p>
+      <div class="tags">
+        <span class="tag">Linux</span>
+        <span class="tag">MMU</span>
+        <span class="tag">Threading</span>
+        <span class="tag">Concurrency</span>
+      </div>
+    </a>
+    <a class="card" href="mmu-threads-cache.html">
+      <h3>MMU, threads &amp; cache coherence</h3>
+      <p>If each core has its own MMU, how do threads share data? End-to-end: same VA&rarr;PA everywhere, MESI/MOESI, memory ordering (TSO vs weak), false sharing, and TLB shootdowns.</p>
+      <div class="tags">
+        <span class="tag">MMU</span>
+        <span class="tag">Cache</span>
+        <span class="tag">MESI</span>
+        <span class="tag">Atomics</span>
+      </div>
+    </a>
+  </div>
+
   <h2>Coming soon</h2>
   <div class="cards">
     <div class="card" style="opacity:.5;cursor:default">
@@ -166,6 +190,16 @@
       <div class="tags">
         <span class="tag">Python</span>
         <span class="tag">Quant</span>
+      </div>
+    </div>
+    <div class="card" style="opacity:.5;cursor:default">
+      <h3>MMU &amp; page tables</h3>
+      <p>Multi-level page tables (x86-64 &amp; ARM64), PTE bits, TLB / PCID / ASID, page faults, huge pages, IOMMU, and nested paging (EPT).</p>
+      <div class="tags">
+        <span class="tag">MMU</span>
+        <span class="tag">Linux</span>
+        <span class="tag">x86-64</span>
+        <span class="tag">ARM64</span>
       </div>
     </div>
   </div>
